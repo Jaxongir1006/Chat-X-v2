@@ -1,0 +1,4 @@
+kafka:
+  host: kafka-dev
+  topics:
+    chat: chat-dev

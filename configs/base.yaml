@@ -1,0 +1,13 @@
+kafka:
+  host: localhost
+  port: 9092
+
+server:
+  host: localhost
+  port: 8080
+
+token:
+  access_secret: "secret"
+  refresh_secret: "secret"
+  access_ttl: "15m"
+  refresh_ttl: "24h"

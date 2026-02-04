@@ -1,0 +1,6 @@
+kafka:
+  host: kafka-prod
+  topics:
+    chat: chat
+    notifications: notifications
+    audit: audit

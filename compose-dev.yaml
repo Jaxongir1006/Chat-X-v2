@@ -1,0 +1,84 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: chat-db
+    restart: always
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASS}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT}:5432"
+
+  redis:
+    image: redis:7-alpine
+    container_name: chat-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    restart: always
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+
+  kafka:
+    image: apache/kafka:3.7.0
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:${KAFKA_PORT}
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    ports:
+      - "${KAFKA_PORT}:9092"
+
+  akhq:
+    image: tchiotludo/akhq:latest
+    environment:
+      AKHQ_CONFIGURATION: |
+        akhq:
+          connections:
+            single-broker:
+              properties:
+                bootstrap.servers: "kafka:9092"
+    ports:
+      - "${AKHQ_PORT}:8080"
+    depends_on:
+      - kafka
+
+  # jaeger:
+  #   image: jaegertracing/all-in-one:1.35
+  #   ports:
+  #     - "16686:16686" # UI
+  #     - "4317:4317" # OTLP
+  #   expose:
+  #     - "16685"
+  #   environment:
+  #     COLLECTOR_OTLP_ENABLED: "true"
+  #     COLLECTOR_GRPC_TLS_ENABLED: "false"
+  #     SPAN_STORAGE_TYPE: "memory"
+  #   command: ["--log-level=info"]
+
+volumes:
+  postgres_data:
+  minio_data:
+  redis_data:
