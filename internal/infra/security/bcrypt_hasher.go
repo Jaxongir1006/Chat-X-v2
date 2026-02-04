@@ -24,3 +24,8 @@ func (h *BcryptHasher) Hash(password string) (string, error) {
 func (h *BcryptHasher) CheckPasswordHash(password, hash string) error {
 	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 }
+
+type Hasher interface {
+	Hash(password string) (string, error)
+	CheckPasswordHash(password, hash string) error
+}

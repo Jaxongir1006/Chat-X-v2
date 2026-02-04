@@ -1,4 +1,5 @@
 package auth
 
-type AuthUsecase struct {
+type authUsecase struct {
+
 }
