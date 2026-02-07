@@ -1,13 +1,15 @@
 package auth
 
-import "github.com/Jaxongir1006/Chat-X-v2/internal/config"
+import (
+	authUsecase "github.com/Jaxongir1006/Chat-X-v2/internal/usecase/auth"
+)
 
-type authHandler struct {
-	cfg *config.Config
+type AuthHandler struct {
+	authUsecase *authUsecase.AuthUsecase
 }
 
-func NewAuthHandler(cfg *config.Config) *authHandler {
-	return &authHandler{
-		cfg: cfg,
+func NewAuthHandler(authUsecase *authUsecase.AuthUsecase) *AuthHandler {
+	return &AuthHandler{
+		authUsecase: authUsecase,
 	}
 }

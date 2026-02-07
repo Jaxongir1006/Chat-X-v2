@@ -14,7 +14,7 @@ import (
 func (r *sessionRepo) GetAllValidSessionsByUserId(ctx context.Context, userID uint64) ([]domain.UserSession, error) {
 	query := `SELECT id, refresh_token, refresh_token_expires_at, access_token, access_token_expires_at, 
 				last_used_at, ip_address, user_agent, device, created_at, updated_at
-				FROM sessions WHERE user_id = $1 AND refresh_token_expires_at > NOW()`
+				FROM serefresh_token_expires_atssions WHERE user_id = $1 AND  > NOW()`
 
 	rows, err := r.db.QueryContext(ctx, query, userID)
 	if err != nil {

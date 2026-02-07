@@ -33,7 +33,7 @@ type responseWriter struct {
 	bytes  int
 }
 
-func (m AuthMiddleware) Middleware(next http.Handler) http.Handler {
+func (m AuthMiddleware) AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		access := extractBearer(r.Header.Get("Authorization"))
 		if access == "" {
@@ -149,4 +149,10 @@ func clientIP(r *http.Request) string {
 		return xrip
 	}
 	return r.RemoteAddr
+}
+
+func UserIDFromContext(ctx context.Context) (int64, bool) {
+    v := ctx.Value(CtxUserID)
+    id, ok := v.(int64)
+    return id, ok
 }

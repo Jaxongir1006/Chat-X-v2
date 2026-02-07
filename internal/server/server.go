@@ -8,19 +8,22 @@ import (
 	"time"
 
 	"github.com/Jaxongir1006/Chat-X-v2/internal/config"
+	"github.com/Jaxongir1006/Chat-X-v2/internal/transport/http/auth"
 	"github.com/Jaxongir1006/Chat-X-v2/internal/transport/http/middleware"
 )
 
 type Server struct {
 	mux  *http.ServeMux
 	http *http.Server
+	authMiddleware *middleware.AuthMiddleware
 }
 
-func NewServer(cfg config.Server) *Server {
+func NewServer(cfg config.Server, authMiddleware *middleware.AuthMiddleware, authHandler auth.AuthHandler) *Server {
 	mux := http.NewServeMux()
 
 	s := &Server{
 		mux: mux,
+		authMiddleware: authMiddleware,
 	}
 
 	handler := middleware.Logging(mux)

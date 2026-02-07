@@ -12,6 +12,14 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
+type TokenStore interface {
+	GenerateAccessToken(userID string) (string, time.Time, error)
+	GenerateRefreshToken(userID string) (string, time.Time, error)
+	VerifyAccessToken(tokenStr string) (*Claims, error)
+	VerifyRefreshToken(tokenStr string) (*Claims, error)
+	GetUserIDFromAccess(tokenStr string) (string, error)
+}
+
 type Token struct {
 	AccessSecret  string
 	RefreshSecret string

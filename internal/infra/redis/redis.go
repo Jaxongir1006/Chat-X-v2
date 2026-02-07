@@ -26,19 +26,19 @@ func (r *redisClient) InitRedis() error {
 
 	redisUrl := fmt.Sprintf("%s:%d", r.Config.Host, r.Config.Port)
 
-	rdb := redis.NewClient(&redis.Options{
+	r.Client = redis.NewClient(&redis.Options{
 		Addr:     redisUrl,
 		Password: r.Config.Pass,
 		DB:       0,
 	})
 
-	err := rdb.Ping(context.Background()).Err()
-	if err != nil {
+	if err := r.Client.Ping(context.Background()).Err(); err != nil {
 		return fmt.Errorf("failed to connect to redis: %w", err)
 	}
 
 	return nil
 }
+
 
 func (r *redisClient) Close() error {
 	if r == nil || r.Client == nil {

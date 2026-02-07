@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -10,10 +11,16 @@ import (
 	"github.com/Jaxongir1006/Chat-X-v2/internal/infra/minio"
 	"github.com/Jaxongir1006/Chat-X-v2/internal/infra/postgres"
 	adminRepo "github.com/Jaxongir1006/Chat-X-v2/internal/infra/postgres/repo/admin"
+	authRepo "github.com/Jaxongir1006/Chat-X-v2/internal/infra/postgres/repo/auth"
+	sessionInfra "github.com/Jaxongir1006/Chat-X-v2/internal/infra/postgres/repo/session"
 	redisInfra "github.com/Jaxongir1006/Chat-X-v2/internal/infra/redis"
+	redisStore "github.com/Jaxongir1006/Chat-X-v2/internal/infra/redis/store"
 	"github.com/Jaxongir1006/Chat-X-v2/internal/infra/security"
 	"github.com/Jaxongir1006/Chat-X-v2/internal/server"
+	"github.com/Jaxongir1006/Chat-X-v2/internal/transport/http/auth"
+	"github.com/Jaxongir1006/Chat-X-v2/internal/transport/http/middleware"
 	"github.com/Jaxongir1006/Chat-X-v2/internal/usecase/adminUsecase"
+	authUsecase "github.com/Jaxongir1006/Chat-X-v2/internal/usecase/auth"
 )
 
 func Run(cmd string) {
@@ -33,7 +40,7 @@ func runHttp() {
 
 	ctx := waitForShutdown()
 
-	// init
+	// init database
 	dbPool, err := postgres.New(cfg.PostgresConfig)
 	if err != nil {
 		log.Fatalf("Failed to initialize postgres: %v", err)
@@ -57,7 +64,34 @@ func runHttp() {
 		log.Fatalf("Failed to ensure minio bucket: %v", err)
 	}
 
-	srv := server.NewServer(cfg.Server)
+	// init infras
+	infraSession := sessionInfra.NewSessionRepo(dbPool.DB)
+
+	// init middlewares
+	authMiddleware := middleware.NewAuthMiddleware(infraSession, true)
+
+	// init repos
+	adminRepo := adminRepo.NewAdminRepo(dbPool.DB)
+	authRepo := authRepo.NewAuthRepo(dbPool.DB)
+
+	// init services
+	hasher := security.NewBcryptHasher(10)
+	redis := redisStore.NewOTPRedisStore(redisPool.Client)
+	tokenSrv := security.NewToken(cfg.TokenConfig.AccessSecret, cfg.TokenConfig.RefreshSecret, 
+		cfg.TokenConfig.AccessTTL, cfg.TokenConfig.RefreshTTL)
+
+
+	// init usecasesp
+	adminUsecase := adminUsecase.NewAdminUsecase(adminRepo, hasher)
+	authUsecase := authUsecase.NewAuthUsecase(authRepo, infraSession, redis, tokenSrv, hasher)
+
+	
+	// init handler
+	authHandler := auth.NewAuthHandler(authUsecase)
+	print(adminUsecase)
+
+	// init server
+	srv := server.NewServer(cfg.Server, authMiddleware, authHandler)
 
 	// start server async
 	go func() {

@@ -14,7 +14,7 @@ type User struct {
 	Phone      string    `json:"phone"`
 	Email      string    `json:"email"`
 	Password   string    `json:"password_hash"`
-	Verfied    bool      `json:"verified"`
+	Verified    bool      `json:"verified"`
 	Role       string    `json:"role"`
 	LastSeenAt time.Time `json:"last_seen_at"`
 	CreatedAt  time.Time `json:"created_at"`
@@ -25,7 +25,7 @@ type UserProfile struct {
 	ID           uint64    `json:"id"`
 	FullName     string    `json:"fullname"`
 	Address      string    `json:"address"`
-	ProfileImage string    `json:"profile_image"`
+	ProfileImage string    `json:"profile_image_link"`
 	UserID       uint64    `json:"user_id"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`

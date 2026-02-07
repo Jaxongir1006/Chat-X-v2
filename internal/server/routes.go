@@ -1,9 +1,12 @@
 package server
 
-import "net/http"
+import (
+	"net/http"
+
+)
 
 func (s *Server) setupRoutes() {
-	s.mux.HandleFunc("/health", healthCheck)
+	s.mux.Handle("/health", s.authMiddleware.AuthMiddleware(http.HandlerFunc(healthCheck)))
 }
 
 func healthCheck(w http.ResponseWriter, r *http.Request) {
