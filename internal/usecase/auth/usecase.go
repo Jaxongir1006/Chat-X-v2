@@ -213,6 +213,11 @@ func (a *AuthUsecase) Login(ctx context.Context, req LoginRequest, meta SessionM
 	return resp, nil
 }
 
+func (a *AuthUsecase) Refresh(ctx context.Context, req RefreshTokenRequest, meta SessionMeta) (*RefreshTokenResponse, error) {
+
+	return nil, nil
+}
+
 // helpers
 func generateRandomCode() int {
 	min := 100000
