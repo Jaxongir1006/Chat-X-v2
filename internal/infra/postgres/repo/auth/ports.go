@@ -6,7 +6,6 @@ import (
 	"github.com/Jaxongir1006/Chat-X-v2/internal/domain"
 )
 
-
 type AuthStore interface {
 	GetByID(ctx context.Context, id uint64) (*domain.User, error)
 	GetByEmail(ctx context.Context, email string) (*domain.User, error)

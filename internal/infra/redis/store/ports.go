@@ -5,7 +5,6 @@ import (
 	"time"
 )
 
-
 type OTPStore interface {
 	SaveEmailCode(ctx context.Context, email string, codeHash string, ttl time.Duration) error
 	GetEmailCodeHash(ctx context.Context, email string) (string, error)

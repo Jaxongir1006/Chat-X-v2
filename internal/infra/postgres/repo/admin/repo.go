@@ -1,13 +1,19 @@
 package adminRepo
 
-import "database/sql"
+import (
+	"database/sql"
+
+	"github.com/rs/zerolog"
+)
 
 type adminRepo struct {
-	db *sql.DB
+	db     *sql.DB
+	logger zerolog.Logger
 }
 
-func NewAdminRepo(db *sql.DB) *adminRepo {
+func NewAdminRepo(db *sql.DB, logger zerolog.Logger) *adminRepo {
 	return &adminRepo{
-		db: db,
+		db:     db,
+		logger: logger,
 	}
 }

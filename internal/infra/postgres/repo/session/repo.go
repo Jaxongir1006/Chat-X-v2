@@ -1,13 +1,19 @@
 package sessionInfra
 
-import "database/sql"
+import (
+	"database/sql"
+
+	"github.com/rs/zerolog"
+)
 
 type sessionRepo struct {
-	db *sql.DB
+	db     *sql.DB
+	logger zerolog.Logger
 }
 
-func NewSessionRepo(db *sql.DB) *sessionRepo {
+func NewSessionRepo(db *sql.DB, logger zerolog.Logger) *sessionRepo {
 	return &sessionRepo{
-		db: db,
+		db:     db,
+		logger: logger,
 	}
 }

@@ -2,13 +2,12 @@ package app
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"time"
 
 	"github.com/Jaxongir1006/Chat-X-v2/internal/config"
-	"github.com/Jaxongir1006/Chat-X-v2/internal/infra/minio"
+	"github.com/Jaxongir1006/Chat-X-v2/internal/infra/logger"
 	"github.com/Jaxongir1006/Chat-X-v2/internal/infra/postgres"
 	adminRepo "github.com/Jaxongir1006/Chat-X-v2/internal/infra/postgres/repo/admin"
 	authRepo "github.com/Jaxongir1006/Chat-X-v2/internal/infra/postgres/repo/auth"
@@ -38,81 +37,93 @@ func runHttp() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
+	logger := logger.New(cfg.AppMode)
+
 	ctx := waitForShutdown()
+
+	// init logger
 
 	// init database
 	dbPool, err := postgres.New(cfg.PostgresConfig)
 	if err != nil {
-		log.Fatalf("Failed to initialize postgres: %v", err)
+		logger.Fatal().Err(err).Msg("failed to initialize postgres")
+		return
 	}
-	defer dbPool.Close()
+	defer func() {
+		if err := dbPool.Close(); err != nil {
+			logger.Error().Err(err).Msg("failed to close db pool")
+		}
+	}()
+
 
 	// init redis
 	redisPool := redisInfra.NewRedisClient(cfg.RedisConfig)
 	if err := redisPool.InitRedis(); err != nil {
-		log.Fatalf("Failed to initialize redis: %v", err)
+		logger.Fatal().Err(err).Msg("failed to initialize redis")
+		return
 	}
-	defer redisPool.Close()
+	defer func() {
+		if err := redisPool.Close(); err != nil {
+			logger.Error().Err(err).Msg("failed to close redis pool")
+		}
+	}()
 
 	// init minio
-	minioStore, err := minio.New(cfg.MinioConfig)
-	if err != nil {
-		log.Fatalf("Failed to init minio: %v", err)
-	}
+	// minioStore, err := minio.New(cfg.MinioConfig)
+	// if err != nil {
+	// 	logger.Fatal().Err(err).Msg("failed to initialized minio")
+	// 	return
+	// }
 
-	if err := minioStore.EnsureBucket(ctx); err != nil {
-		log.Fatalf("Failed to ensure minio bucket: %v", err)
-	}
+	// if err := minioStore.EnsureBucket(ctx); err != nil {
+	// 	logger.Fatal().Err(err).Msg("failed to ensure minio bucket")
+	// 	return
+	// }
 
 	// init infras
-	infraSession := sessionInfra.NewSessionRepo(dbPool.DB)
+	infraSession := sessionInfra.NewSessionRepo(dbPool.DB, logger)
 
 	// init middlewares
 	authMiddleware := middleware.NewAuthMiddleware(infraSession, true)
 
 	// init repos
-	adminRepo := adminRepo.NewAdminRepo(dbPool.DB)
-	authRepo := authRepo.NewAuthRepo(dbPool.DB)
+	authRepo := authRepo.NewAuthRepo(dbPool.DB, logger)
 
 	// init services
 	hasher := security.NewBcryptHasher(10)
+	codeHasher := security.NewHMACHasher("secret")
 	redis := redisStore.NewOTPRedisStore(redisPool.Client)
-	tokenSrv := security.NewToken(cfg.TokenConfig.AccessSecret, cfg.TokenConfig.RefreshSecret, 
-		cfg.TokenConfig.AccessTTL, cfg.TokenConfig.RefreshTTL)
+	tokenSrv := security.NewToken(cfg.TokenConfig)
 
+	// init usecases
+	authUsecase := authUsecase.NewAuthUsecase(authRepo, infraSession, redis, tokenSrv, hasher, logger, codeHasher)
 
-	// init usecasesp
-	adminUsecase := adminUsecase.NewAdminUsecase(adminRepo, hasher)
-	authUsecase := authUsecase.NewAuthUsecase(authRepo, infraSession, redis, tokenSrv, hasher)
-
-	
-	// init handler
-	authHandler := auth.NewAuthHandler(authUsecase)
-	print(adminUsecase)
+	// init handlers
+	authHandler := auth.NewAuthHandler(authUsecase, logger)
 
 	// init server
-	srv := server.NewServer(cfg.Server, authMiddleware, authHandler)
+	srv := server.NewServer(cfg.Server, authMiddleware, authHandler, logger)
 
 	// start server async
 	go func() {
 		if err := srv.Run(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Server error: %v", err)
+			logger.Fatal().Err(err).Msg("Failed to run server")
 		}
 	}()
 
 	// wait for signal
 	<-ctx.Done()
-	log.Println("Shutdown signal received")
+	logger.Info().Msg("Shutting down server...")
 
 	// shutdown with timeout
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		log.Printf("Shutdown error: %v", err)
+		logger.Err(err).Msg("Failed to shutdown server")
 	}
 
-	log.Println("Graceful shutdown completed")
+	logger.Info().Msg("Shutdown complete")
 }
 
 func createSuperuser() {
@@ -121,13 +132,20 @@ func createSuperuser() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
+	logger := logger.New(cfg.AppMode)
+
 	dbPool, err := postgres.New(cfg.PostgresConfig)
 	if err != nil {
 		log.Fatalf("Failed to initialize postgres: %v", err)
 	}
-	defer dbPool.Close()
 
-	repo := adminRepo.NewAdminRepo(dbPool.DB)
+	defer func() {
+		if err := dbPool.Close(); err != nil {
+			logger.Error().Err(err).Msg("failed to close db pool")
+		}
+	}()
+
+	repo := adminRepo.NewAdminRepo(dbPool.DB, logger)
 	hasher := security.NewBcryptHasher(8)
 
 	usecase := adminUsecase.NewAdminUsecase(repo, hasher)

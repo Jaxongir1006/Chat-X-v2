@@ -65,19 +65,6 @@ services:
     depends_on:
       - kafka
 
-  # jaeger:
-  #   image: jaegertracing/all-in-one:1.35
-  #   ports:
-  #     - "16686:16686" # UI
-  #     - "4317:4317" # OTLP
-  #   expose:
-  #     - "16685"
-  #   environment:
-  #     COLLECTOR_OTLP_ENABLED: "true"
-  #     COLLECTOR_GRPC_TLS_ENABLED: "false"
-  #     SPAN_STORAGE_TYPE: "memory"
-  #   command: ["--log-level=info"]
-
 volumes:
   postgres_data:
   minio_data:

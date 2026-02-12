@@ -39,7 +39,6 @@ func (r *redisClient) InitRedis() error {
 	return nil
 }
 
-
 func (r *redisClient) Close() error {
 	if r == nil || r.Client == nil {
 		return nil

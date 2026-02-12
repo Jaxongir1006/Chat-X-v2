@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/Jaxongir1006/Chat-X-v2/internal/config"
 	"github.com/golang-jwt/jwt/v4"
 )
 
@@ -27,12 +28,12 @@ type Token struct {
 	RefreshTTL    time.Duration
 }
 
-func NewToken(accessSecret, refreshSecret string, accessTTL, refreshTTL time.Duration) *Token {
+func NewToken(cfg config.TokenConfig) *Token {
 	return &Token{
-		AccessSecret:  accessSecret,
-		RefreshSecret: refreshSecret,
-		AccessTTL:     accessTTL,
-		RefreshTTL:    refreshTTL,
+		AccessSecret:  cfg.AccessSecret,
+		RefreshSecret: cfg.RefreshSecret,
+		AccessTTL:     cfg.AccessTTL,
+		RefreshTTL:    cfg.RefreshTTL,
 	}
 }
 

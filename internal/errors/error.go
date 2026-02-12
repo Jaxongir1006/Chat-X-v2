@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
+
+	"github.com/rs/zerolog"
 )
 
 type Code string
@@ -57,14 +58,24 @@ func Is(err error, code Code) bool {
 	return false
 }
 
-func WriteError(w http.ResponseWriter, err error) {
+func WriteError(w http.ResponseWriter, err error, logger zerolog.Logger) {
 	var ae *AppError
 	if !errors.As(err, &ae) {
-		ae = Wrap(CodeInternal, 500, "Internal server error", err)
+		ae = Wrap(CodeInternal, http.StatusInternalServerError, "Internal server error", err)
 	}
 
-	// log internal
-	log.Printf("error code=%s status=%d err=%v", ae.Code, ae.Status, ae.Err)
+	// log internal (always)
+	evt := logger.Error()
+	if ae.Status < 500 {
+		evt = logger.Warn()
+	}
+
+	evt.
+		Str("code", string(ae.Code)).
+		Int("status", ae.Status).
+		Interface("fields", ae.Fields).
+		Err(err).
+		Msg(ae.Message)
 
 	// respond public
 	resp := map[string]any{
@@ -74,6 +85,7 @@ func WriteError(w http.ResponseWriter, err error) {
 			"fields":  ae.Fields,
 		},
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(ae.Status)
 	_ = json.NewEncoder(w).Encode(resp)

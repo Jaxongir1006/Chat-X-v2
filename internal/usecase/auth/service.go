@@ -5,22 +5,31 @@ import (
 	sessionInfra "github.com/Jaxongir1006/Chat-X-v2/internal/infra/postgres/repo/session"
 	redisStore "github.com/Jaxongir1006/Chat-X-v2/internal/infra/redis/store"
 	"github.com/Jaxongir1006/Chat-X-v2/internal/infra/security"
+	"github.com/rs/zerolog"
 )
 
 type AuthUsecase struct {
-	authStore authRepo.AuthStore
-	session   sessionInfra.SessionStore
-	redis     redisStore.OTPStore
-	hasher    security.Hasher
-	token     security.TokenStore
+	authStore  authRepo.AuthStore
+	session    sessionInfra.SessionStore
+	redis      redisStore.OTPStore
+	hasher     security.Hasher
+	token      security.TokenStore
+	logger     zerolog.Logger
+	codeHasher security.CodeHasher
 }
 
-func NewAuthUsecase(authStore authRepo.AuthStore, session sessionInfra.SessionStore, redis redisStore.OTPStore, token security.TokenStore, hasher security.Hasher) *AuthUsecase {
+func NewAuthUsecase(authStore authRepo.AuthStore,
+	session sessionInfra.SessionStore, redis redisStore.OTPStore,
+	token security.TokenStore, hasher security.Hasher,
+	logger zerolog.Logger, codeHasher security.CodeHasher) *AuthUsecase {
+
 	return &AuthUsecase{
-		authStore: authStore,
-		session:   session,
-		redis:     redis,
-		token:     token,
-		hasher:    hasher,
+		authStore:  authStore,
+		session:    session,
+		redis:      redis,
+		token:      token,
+		hasher:     hasher,
+		logger:     logger,
+		codeHasher: codeHasher,
 	}
 }

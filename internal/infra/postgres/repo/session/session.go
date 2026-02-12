@@ -20,7 +20,12 @@ func (r *sessionRepo) GetAllValidSessionsByUserId(ctx context.Context, userID ui
 	if err != nil {
 		return nil, apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
 	}
-	defer rows.Close()
+	
+	defer func() {
+		if err := rows.Close(); err != nil {
+			r.logger.Fatal().Err(err).Msg("could not close rows")
+		}
+	}()
 
 	sessions := make([]domain.UserSession, 0)
 
@@ -110,17 +115,6 @@ func (r *sessionRepo) UpdateTokens(ctx context.Context, sessionID uint64, access
 	return nil
 }
 
-func (r *sessionRepo) UpdateLastUsed(ctx context.Context, sessionID uint64, t time.Time) error {
-	query := `UPDATE sessions SET last_used_at = $1 updated_at = NOW() WHERE id = $2`
-
-	_, err := r.db.ExecContext(ctx, query, t, sessionID)
-	if err != nil {
-		return apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
-	}
-
-	return nil
-}
-
 func (r *sessionRepo) DeleteByID(ctx context.Context, sessionID uint64) error {
 	query := `DELETE FROM sessions WHERE id = $1`
 
@@ -144,7 +138,7 @@ func (r *sessionRepo) DeleteByUserID(ctx context.Context, userID uint64) error {
 }
 
 func (r *sessionRepo) DeleteOldestValidSession(ctx context.Context, userID uint64) error {
-	query :=   `DELETE FROM sessions
+	query := `DELETE FROM sessions
 				WHERE id = (
 					SELECT id
 					FROM sessions

@@ -7,7 +7,6 @@ import (
 	"github.com/Jaxongir1006/Chat-X-v2/internal/domain"
 )
 
-
 type SessionStore interface {
 	// lists sessions where refresh is still valid (or revoked_at is null)
 	GetAllValidSessionsByUserId(ctx context.Context, userID uint64) ([]domain.UserSession, error)
@@ -19,7 +18,6 @@ type SessionStore interface {
 	// CRUD
 	Create(ctx context.Context, s *domain.UserSession) error
 	UpdateTokens(ctx context.Context, sessionID uint64, access string, accessExp time.Time, refresh string, refreshExp time.Time) error
-	UpdateLastUsed(ctx context.Context, sessionID uint64, t time.Time) error
 
 	DeleteByID(ctx context.Context, sessionID uint64) error
 	DeleteByUserID(ctx context.Context, userID uint64) error

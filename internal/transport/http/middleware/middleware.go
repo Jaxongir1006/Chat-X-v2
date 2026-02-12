@@ -2,38 +2,75 @@ package middleware
 
 import (
 	"context"
-	"log"
+	"net"
 	"net/http"
 	"strings"
 	"time"
 
 	sessionInfra "github.com/Jaxongir1006/Chat-X-v2/internal/infra/postgres/repo/session"
+	"github.com/rs/zerolog"
 )
 
 type ctxKey string
 
-const CtxUserID ctxKey = "user_id"
-const CtxSessionID ctxKey = "session_id"
+const (
+	CtxUserID    ctxKey = "user_id"
+	CtxSessionID ctxKey = "session_id"
+)
+
+type metaKey string
+
+const (
+	CtxIP        metaKey = "ip"
+	CtxUserAgent metaKey = "user_agent"
+	CtxDevice    metaKey = "device"
+)
+
+type RequestMeta struct {
+	IP        string
+	UserAgent string
+	Device    string
+}
+
+func WithMeta(ctx context.Context, m RequestMeta) context.Context {
+	ctx = context.WithValue(ctx, CtxIP, m.IP)
+	ctx = context.WithValue(ctx, CtxUserAgent, m.UserAgent)
+	ctx = context.WithValue(ctx, CtxDevice, m.Device)
+	return ctx
+}
+
+func MetaFromContext(ctx context.Context) (RequestMeta, bool) {
+	ip, ok1 := ctx.Value(CtxIP).(string)
+	ua, ok2 := ctx.Value(CtxUserAgent).(string)
+	device, ok3 := ctx.Value(CtxDevice).(string)
+	if !ok1 || !ok2 || !ok3 {
+		return RequestMeta{}, false
+	}
+	return RequestMeta{IP: ip, UserAgent: ua, Device: device}, true
+}
+
+func MetaMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ua := r.UserAgent()
+		meta := RequestMeta{
+			IP:        clientIP(r),
+			UserAgent: ua,
+			Device:    parseDevice(ua),
+		}
+		next.ServeHTTP(w, r.WithContext(WithMeta(r.Context(), meta)))
+	})
+}
 
 type AuthMiddleware struct {
 	Sessions       sessionInfra.SessionStore
-	RequireRefresh bool // set true only if you REALLY want refresh on every request
+	RequireRefresh bool
 }
 
 func NewAuthMiddleware(sessions sessionInfra.SessionStore, requireRefresh bool) *AuthMiddleware {
-	return &AuthMiddleware{
-		Sessions:       sessions,
-		RequireRefresh: requireRefresh,
-	}
+	return &AuthMiddleware{Sessions: sessions, RequireRefresh: requireRefresh}
 }
 
-type responseWriter struct {
-	http.ResponseWriter
-	status int
-	bytes  int
-}
-
-func (m AuthMiddleware) AuthMiddleware(next http.Handler) http.Handler {
+func (m *AuthMiddleware) Wrap(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		access := extractBearer(r.Header.Get("Authorization"))
 		if access == "" {
@@ -70,6 +107,7 @@ func (m AuthMiddleware) AuthMiddleware(next http.Handler) http.Handler {
 				http.Error(w, "unauthorized", http.StatusUnauthorized)
 				return
 			}
+
 			rs, err := m.Sessions.GetByRefreshToken(r.Context(), refresh)
 			if err != nil || rs == nil || rs.UserID != sess.UserID {
 				http.Error(w, "unauthorized", http.StatusUnauthorized)
@@ -81,8 +119,6 @@ func (m AuthMiddleware) AuthMiddleware(next http.Handler) http.Handler {
 			}
 		}
 
-		_ = m.Sessions.UpdateLastUsed(r.Context(), sess.ID, now)
-
 		ctx := context.WithValue(r.Context(), CtxUserID, sess.UserID)
 		ctx = context.WithValue(ctx, CtxSessionID, sess.ID)
 
@@ -90,6 +126,64 @@ func (m AuthMiddleware) AuthMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// logging
+type responseWriter struct {
+	http.ResponseWriter
+	status int
+	bytes  int
+}
+
+func (rw *responseWriter) WriteHeader(code int) {
+	rw.status = code
+	rw.ResponseWriter.WriteHeader(code)
+}
+
+func (rw *responseWriter) Write(b []byte) (int, error) {
+	if rw.status == 0 {
+		rw.WriteHeader(http.StatusOK)
+	}
+	n, err := rw.ResponseWriter.Write(b)
+	rw.bytes += n
+	return n, err
+}
+
+func Logging(l zerolog.Logger, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		rw := &responseWriter{ResponseWriter: w}
+
+		next.ServeHTTP(rw, r)
+
+		d := time.Since(start)
+
+		evt := l.Info()
+		switch {
+		case rw.status >= 500:
+			evt = l.Error()
+		case rw.status >= 400:
+			evt = l.Warn()
+		}
+
+		meta, ok := MetaFromContext(r.Context())
+		if !ok {
+			ua := r.UserAgent()
+			meta = RequestMeta{IP: clientIP(r), UserAgent: ua, Device: parseDevice(ua)}
+		}
+
+		evt.
+			Str("method", r.Method).
+			Str("path", r.URL.Path).
+			Int("status", rw.status).
+			Int("bytes", rw.bytes).
+			Int64("dur_ms", d.Milliseconds()).
+			Str("ip", meta.IP).
+			Str("ua", meta.UserAgent).
+			Str("device", meta.Device).
+			Msg("http")
+	})
+}
+
+// Helpers
 func extractBearer(authHeader string) string {
 	if authHeader == "" {
 		return ""
@@ -104,55 +198,45 @@ func extractBearer(authHeader string) string {
 	return strings.TrimSpace(parts[1])
 }
 
-func (w *responseWriter) WriteHeader(code int) {
-	w.status = code
-	w.ResponseWriter.WriteHeader(code)
-}
-
-func (w *responseWriter) Write(b []byte) (int, error) {
-	if w.status == 0 {
-		w.status = http.StatusOK
-	}
-	n, err := w.ResponseWriter.Write(b)
-	w.bytes += n
-	return n, err
-}
-
-func Logging(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-
-		rw := &responseWriter{ResponseWriter: w, status: 0}
-
-		next.ServeHTTP(rw, r)
-
-		d := time.Since(start)
-
-		log.Printf(
-			`%s %s -> %d (%dB) in %s | ip=%s | %q`,
-			r.Method,
-			r.URL.Path,
-			rw.status,
-			rw.bytes,
-			d,
-			clientIP(r),
-			r.UserAgent(),
-		)
-	})
-}
-
 func clientIP(r *http.Request) string {
+	// X-Forwarded-For: "client, proxy1, proxy2"
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		return xff
+		first := strings.TrimSpace(strings.Split(xff, ",")[0])
+		if first != "" {
+			return first
+		}
 	}
-	if xrip := r.Header.Get("X-Real-IP"); xrip != "" {
+	if xrip := strings.TrimSpace(r.Header.Get("X-Real-IP")); xrip != "" {
 		return xrip
 	}
-	return r.RemoteAddr
+
+	host, _, err := net.SplitHostPort(strings.TrimSpace(r.RemoteAddr))
+	if err == nil && host != "" {
+		return host
+	}
+	return strings.TrimSpace(r.RemoteAddr)
 }
 
-func UserIDFromContext(ctx context.Context) (int64, bool) {
-    v := ctx.Value(CtxUserID)
-    id, ok := v.(int64)
-    return id, ok
+func UserIDFromContext(ctx context.Context) (uint64, bool) {
+	v := ctx.Value(CtxUserID)
+	id, ok := v.(uint64)
+	return id, ok
+}
+
+func parseDevice(ua string) string {
+	ua = strings.ToLower(ua)
+	switch {
+	case strings.Contains(ua, "android"):
+		return "Android"
+	case strings.Contains(ua, "iphone"), strings.Contains(ua, "ipad"), strings.Contains(ua, "ios"):
+		return "iOS"
+	case strings.Contains(ua, "windows"):
+		return "Windows"
+	case strings.Contains(ua, "macintosh"), strings.Contains(ua, "mac os"):
+		return "Mac"
+	case strings.Contains(ua, "linux"):
+		return "Linux"
+	default:
+		return "Unknown"
+	}
 }

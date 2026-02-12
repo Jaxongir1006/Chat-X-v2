@@ -1,6 +1,12 @@
 package security
 
-import "golang.org/x/crypto/bcrypt"
+import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
+
+	"golang.org/x/crypto/bcrypt"
+)
 
 type BcryptHasher struct {
 	Cost int
@@ -28,4 +34,29 @@ func (h *BcryptHasher) CheckPasswordHash(password, hash string) error {
 type Hasher interface {
 	Hash(password string) (string, error)
 	CheckPasswordHash(password, hash string) error
+}
+
+type HMACHasher struct {
+	Secret []byte
+}
+
+func NewHMACHasher(secret string) *HMACHasher {
+	return &HMACHasher{
+		Secret: []byte(secret),
+	}
+}
+
+func (h *HMACHasher) Hash(value string) string {
+	mac := hmac.New(sha256.New, h.Secret)
+	mac.Write([]byte(value))
+	return hex.EncodeToString(mac.Sum(nil))
+}
+
+func (h *HMACHasher) Compare(value, hash string) bool {
+	return h.Hash(value) == hash
+}
+
+type CodeHasher interface {
+	Hash(value string) string
+	Compare(value, hash string) bool
 }

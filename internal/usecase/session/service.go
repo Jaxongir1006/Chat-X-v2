@@ -109,7 +109,6 @@ func (s *SessionUsecase) ValidateAccess(ctx context.Context, accessToken string)
 		return nil, apperr.New(apperr.CodeUnauthorized, http.StatusUnauthorized, "ACCESS TOKEN EXPIRED")
 	}
 
-	_ = s.SessionStore.UpdateLastUsed(ctx, sess.ID, time.Now())
 	return sess, nil
 }
 
@@ -160,9 +159,6 @@ func (s *SessionUsecase) RefreshTokens(ctx context.Context, refreshToken string)
 	sess.RefreshToken = newRefresh
 	sess.RefreshTokenExp = newRefreshExp
 	sess.LastUsedAt = now
-
-	_ = s.SessionStore.UpdateLastUsed(ctx, sess.ID, now)
-
 	return sess, nil
 }
 
