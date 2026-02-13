@@ -27,4 +27,7 @@ type SessionStore interface {
 
 	// cleanup
 	DeleteExpiredRefreshSessionsByUserID(ctx context.Context, userID uint64) error
+
+	RotateRefresh(ctx context.Context, sessionID uint64, refresh string, refreshExp time.Time) error
+	UpdateMeta(ctx context.Context, sessId uint64, device, ip, userAgent string, now time.Time) error
 }

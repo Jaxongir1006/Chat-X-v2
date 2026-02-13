@@ -54,6 +54,5 @@ type RefreshTokenResponse struct {
 	AccessTokenExp  string `json:"access_token_ttl"`
 	RefreshTokenExp string `json:"refresh_token_ttl"`
 	Device          string `json:"device"`
-	UserEmail       string `json:"user_email"`
 	IpAddress       string `json:"ip_address"`
 }

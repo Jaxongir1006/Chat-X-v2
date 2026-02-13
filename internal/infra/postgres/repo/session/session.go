@@ -165,3 +165,27 @@ func (r *sessionRepo) DeleteExpiredRefreshSessionsByUserID(ctx context.Context, 
 
 	return nil
 }
+
+func (r *sessionRepo) RotateRefresh(ctx context.Context, sessionID uint64, refresh string, refreshExp time.Time) error {
+	query := `UPDATE sessions SET refresh_token = $1, refresh_token_expires_at = $2, updated_at = NOW()
+				WHERE id = $3`
+
+	_, err := r.db.ExecContext(ctx, query, refresh, refreshExp, sessionID)
+	if err != nil {
+		return apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+	}
+
+	return nil
+}
+
+func (r *sessionRepo) UpdateMeta(ctx context.Context, sessId int, device, ip, userAgent string, now time.Time) error {
+	query := `UPDATE sessions SET device = $1, ip_address = $2, user_agent = $3, updated_at = $4
+				WHERE id = $5`
+
+	_, err := r.db.ExecContext(ctx, query, device, ip, userAgent, now, sessId)
+	if err != nil {
+		return apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+	}
+
+	return nil
+}

@@ -2,6 +2,8 @@ package authUsecase
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"math/rand/v2"
 	"net/http"
@@ -137,7 +139,7 @@ func (a *AuthUsecase) VerifyUser(ctx context.Context, email string, code int, me
 func (a *AuthUsecase) Login(ctx context.Context, req LoginRequest, meta SessionMeta) (*LoginResponse, error) {
 	var (
 		user *domain.User
-		err error
+		err  error
 	)
 
 	isEmail := strings.Contains(req.LoginInput, "@")
@@ -145,21 +147,25 @@ func (a *AuthUsecase) Login(ctx context.Context, req LoginRequest, meta SessionM
 	if isEmail {
 		user, err = a.authStore.GetByEmail(ctx, req.LoginInput)
 		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil, apperr.New(apperr.CodeUnauthorized, http.StatusUnauthorized, "invalid credentials")
+			}
 			a.logger.Error().Err(err).Msg("failed to get user by email")
 			return nil, apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
 		}
-	}
-
-	if !isEmail {
+	} else {
 		user, err = a.authStore.GetByPhone(ctx, req.LoginInput)
 		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil, apperr.New(apperr.CodeUnauthorized, http.StatusUnauthorized, "invalid credentials")
+			}
 			a.logger.Error().Err(err).Msg("failed to get user by phone")
 			return nil, apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
 		}
 	}
 
 	if user == nil {
-		return nil, apperr.New(apperr.CodeNotFound, http.StatusNotFound, "user not found")
+		return nil, apperr.New(apperr.CodeUnauthorized, http.StatusUnauthorized, "invalid credentials")
 	}
 
 	if !user.Verified {
@@ -167,10 +173,9 @@ func (a *AuthUsecase) Login(ctx context.Context, req LoginRequest, meta SessionM
 	}
 
 	if err := a.hasher.CheckPasswordHash(req.Password, user.Password); err != nil {
-		return nil, apperr.New(apperr.CodeUnauthorized, http.StatusUnauthorized, "invalid password")
+		return nil, apperr.New(apperr.CodeUnauthorized, http.StatusUnauthorized, "invalid credentials")
 	}
 
-	// create tokens
 	accessToken, accessTokenExp, err := a.token.GenerateAccessToken(fmt.Sprintf("%d", user.ID))
 	if err != nil {
 		a.logger.Error().Err(err).Msg("failed to generate access token")
@@ -183,45 +188,153 @@ func (a *AuthUsecase) Login(ctx context.Context, req LoginRequest, meta SessionM
 		return nil, apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
 	}
 
-	session := &domain.UserSession{
-		UserID:          user.ID,
-		AccessToken:     accessToken,
-		AccessTokenExp:  accessTokenExp,
-		RefreshToken:    refreshToken,
-		RefreshTokenExp: refreshTokenExp,
-		IPAddress:       meta.IP,
-		Device:          meta.Device,
-		UserAgent:       meta.UserAgent,
-	}
-
-	// create session
-	if err := a.session.Create(ctx, session); err != nil {
-		a.logger.Error().Err(err).Msg("failed to create session")
+	sessions, err := a.session.GetAllValidSessionsByUserId(ctx, user.ID)
+	if err != nil {
+		a.logger.Error().Err(err).Msg("failed to get user sessions")
 		return nil, apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
 	}
 
-	resp := &LoginResponse{
-		AccessToken: accessToken,
-		RefreshToken: refreshToken,
-		AccessTokenExp: accessTokenExp.String(),
-		RefreshTokenExp: refreshTokenExp.String(),
-		Device: meta.Device,
-		UserEmail: user.Email,
-		IpAddress: meta.IP,
+	// If already at/over limit, delete oldest until there's room (at least once here).
+	// If you want to be strict, loop while len(sessions) >= 5.
+	if len(sessions) >= 5 {
+		if err := a.session.DeleteOldestValidSession(ctx, user.ID); err != nil {
+			a.logger.Error().Err(err).Msg("failed to delete oldest session")
+			return nil, apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+		}
+		// Optional: you can re-fetch sessions here if your Delete affects which one should be updated.
 	}
 
-	return resp, nil
+	updated := false
+	for _, s := range sessions {
+		// NOTE: Device string matching can be weak. Prefer meta.DeviceID if you have it.
+		if s.Device == meta.Device {
+			updated = true
+
+			// Update tokens for this existing session
+			if err := a.session.UpdateTokens(ctx, s.ID, accessToken, accessTokenExp, refreshToken, refreshTokenExp); err != nil {
+				a.logger.Error().Err(err).Msg("failed to update session tokens")
+				return nil, apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+			}
+
+			// Keep meta fresh too (recommended). If you don't have UpdateMeta, add it.
+			// If you already update meta inside UpdateTokens, remove this block.
+			if err := a.session.UpdateMeta(ctx, s.ID, meta.Device, meta.IP, meta.UserAgent, time.Now()); err != nil {
+				a.logger.Error().Err(err).Msg("failed to update session meta")
+				return nil, apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+			}
+
+			break
+		}
+	}
+
+	if !updated {
+		session := &domain.UserSession{
+			UserID:          user.ID,
+			AccessToken:     accessToken,
+			AccessTokenExp:  accessTokenExp,
+			RefreshToken:    refreshToken,
+			RefreshTokenExp: refreshTokenExp,
+			IPAddress:       meta.IP,
+			Device:          meta.Device,
+			UserAgent:       meta.UserAgent,
+			LastUsedAt:      time.Now(),
+		}
+
+		if err := a.session.Create(ctx, session); err != nil {
+			a.logger.Error().Err(err).Msg("failed to create session")
+			return nil, apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+		}
+	}
+
+	return &LoginResponse{
+		AccessToken:      accessToken,
+		RefreshToken:     refreshToken,
+		AccessTokenExp:   accessTokenExp.Format(time.RFC3339),
+		RefreshTokenExp:  refreshTokenExp.Format(time.RFC3339),
+		Device:           meta.Device,
+		UserEmail:        user.Email,
+		IpAddress:        meta.IP,
+	}, nil
 }
 
 func (a *AuthUsecase) Refresh(ctx context.Context, req RefreshTokenRequest, meta SessionMeta) (*RefreshTokenResponse, error) {
+	if req.RefreshToken == "" {
+		return nil, apperr.Wrap(apperr.CodeUnauthorized, http.StatusUnauthorized, "UNAUTHORIZED", errors.New("missing refresh token"))
+	}
 
-	return nil, nil
+	claims, err := a.token.VerifyRefreshToken(req.RefreshToken)
+	if err != nil {
+		return nil, apperr.Wrap(apperr.CodeUnauthorized, http.StatusUnauthorized, "UNAUTHORIZED", err)
+	}
+
+	sess, err := a.session.GetByRefreshToken(ctx, req.RefreshToken)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, apperr.Wrap(apperr.CodeUnauthorized, http.StatusUnauthorized, "UNAUTHORIZED", err)
+		}
+		return nil, apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+	}
+
+	if sess.RevokedAt != nil {
+		return nil, apperr.Wrap(apperr.CodeUnauthorized, http.StatusUnauthorized, "UNAUTHORIZED", errors.New("session revoked"))
+	}
+
+	now := time.Now()
+	if !sess.RefreshTokenExp.After(now) {
+		return nil, apperr.Wrap(apperr.CodeUnauthorized, http.StatusUnauthorized, "UNAUTHORIZED", errors.New("refresh session expired"))
+	}
+
+	// CRITICAL: bind claims -> session user.
+	// Adjust accessor: Subject / UserID / GetSubject etc.
+	claimSub := ""
+	// Example possibilities (uncomment the one matching your claims type):
+	claimSub = claims.Subject
+	claimSub = claims.RegisteredClaims.Subject
+	// claimSub = claims.GetSubject()
+	if claimSub == "" {
+		// If you can't access subject, at least log it and fail safe.
+		return nil, apperr.Wrap(apperr.CodeUnauthorized, http.StatusUnauthorized, "UNAUTHORIZED", errors.New("invalid refresh claims subject"))
+	}
+
+	if claimSub != fmt.Sprintf("%d", sess.UserID) {
+		return nil, apperr.Wrap(apperr.CodeUnauthorized, http.StatusUnauthorized, "UNAUTHORIZED", errors.New("token user mismatch"))
+	}
+
+	accessToken, accessExp, err := a.token.GenerateAccessToken(fmt.Sprintf("%d", sess.UserID))
+	if err != nil {
+		a.logger.Error().Err(err).Msg("failed to generate access token")
+		return nil, apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+	}
+
+	newRefresh, newRefreshExp, err := a.token.GenerateRefreshToken(fmt.Sprintf("%d", sess.UserID))
+	if err != nil {
+		a.logger.Error().Err(err).Msg("failed to generate refresh token")
+		return nil, apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+	}
+
+	if err := a.session.RotateRefresh(ctx, sess.ID, newRefresh, newRefreshExp); err != nil {
+		return nil, apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+	}
+
+	if err := a.session.UpdateMeta(ctx, sess.ID, meta.Device, meta.IP, meta.UserAgent, now); err != nil {
+		return nil, apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+	}
+
+	return &RefreshTokenResponse{
+		AccessToken:     accessToken,
+		AccessTokenExp:  accessExp.Format(time.RFC3339),
+		RefreshToken:    newRefresh,
+		RefreshTokenExp: newRefreshExp.Format(time.RFC3339),
+		Device:          meta.Device,
+		IpAddress:       meta.IP,
+	}, nil
 }
+
 
 // helpers
 func generateRandomCode() int {
 	min := 100000
 	max := 999999
-
+	
 	return rand.IntN(max-min+1) + min
 }
