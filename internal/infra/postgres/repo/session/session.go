@@ -178,7 +178,7 @@ func (r *sessionRepo) RotateRefresh(ctx context.Context, sessionID uint64, refre
 	return nil
 }
 
-func (r *sessionRepo) UpdateMeta(ctx context.Context, sessId int, device, ip, userAgent string, now time.Time) error {
+func (r *sessionRepo) UpdateMeta(ctx context.Context, sessId uint64, device, ip, userAgent string, now time.Time) error {
 	query := `UPDATE sessions SET device = $1, ip_address = $2, user_agent = $3, updated_at = $4
 				WHERE id = $5`
 
