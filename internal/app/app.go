@@ -18,8 +18,10 @@ import (
 	"github.com/Jaxongir1006/Chat-X-v2/internal/server"
 	"github.com/Jaxongir1006/Chat-X-v2/internal/transport/http/auth"
 	"github.com/Jaxongir1006/Chat-X-v2/internal/transport/http/middleware"
+	"github.com/Jaxongir1006/Chat-X-v2/internal/transport/http/session"
 	"github.com/Jaxongir1006/Chat-X-v2/internal/usecase/adminUsecase"
 	authUsecase "github.com/Jaxongir1006/Chat-X-v2/internal/usecase/auth"
+	sessionUsecase "github.com/Jaxongir1006/Chat-X-v2/internal/usecase/session"
 )
 
 func Run(cmd string) {
@@ -54,7 +56,6 @@ func runHttp() {
 			logger.Error().Err(err).Msg("failed to close db pool")
 		}
 	}()
-
 
 	// init redis
 	redisPool := redisInfra.NewRedisClient(cfg.RedisConfig)
@@ -97,12 +98,14 @@ func runHttp() {
 
 	// init usecases
 	authUsecase := authUsecase.NewAuthUsecase(authRepo, infraSession, redis, tokenSrv, hasher, logger, codeHasher)
+	sessionUsecase := sessionUsecase.NewSessionService(infraSession, tokenSrv, 5)
 
 	// init handlers
 	authHandler := auth.NewAuthHandler(authUsecase, logger)
+	sessionHandler := session.NewSessionHandler(sessionUsecase, logger)
 
 	// init server
-	srv := server.NewServer(cfg.Server, authMiddleware, authHandler, logger)
+	srv := server.NewServer(cfg.Server, authMiddleware, logger, authHandler, sessionHandler)
 
 	// start server async
 	go func() {

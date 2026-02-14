@@ -43,7 +43,7 @@ func (t *Token) GenerateAccessToken(userID string) (string, time.Time, error) {
 	claims := &Claims{
 		UserID: userID,
 		RegisteredClaims: jwt.RegisteredClaims{
-			Subject: userID,
+			Subject:   userID,
 			ExpiresAt: jwt.NewNumericDate(exp),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
@@ -64,7 +64,7 @@ func (t *Token) GenerateRefreshToken(userID string) (string, time.Time, error) {
 	claims := &Claims{
 		UserID: userID,
 		RegisteredClaims: jwt.RegisteredClaims{
-			Subject: userID,
+			Subject:   userID,
 			ExpiresAt: jwt.NewNumericDate(exp),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},

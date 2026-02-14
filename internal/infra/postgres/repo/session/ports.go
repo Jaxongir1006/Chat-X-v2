@@ -30,4 +30,7 @@ type SessionStore interface {
 
 	RotateRefresh(ctx context.Context, sessionID uint64, refresh string, refreshExp time.Time) error
 	UpdateMeta(ctx context.Context, sessId uint64, device, ip, userAgent string, now time.Time) error
+
+	RevokeByID(ctx context.Context, sessionID, userID uint64) error
+	RevokeOthers(ctx context.Context, userID uint64, currentSessionID uint64) error
 }

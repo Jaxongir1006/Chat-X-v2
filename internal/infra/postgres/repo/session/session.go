@@ -23,7 +23,7 @@ func (r *sessionRepo) GetAllValidSessionsByUserId(ctx context.Context, userID ui
 	if err != nil {
 		return nil, apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
 	}
-	
+
 	defer func() {
 		if err := rows.Close(); err != nil {
 			r.logger.Fatal().Err(err).Msg("could not close rows")

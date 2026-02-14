@@ -16,8 +16,8 @@ type ctxKey string
 type metaKey string
 
 const (
-	CtxUserID    ctxKey = "user_id"
-	CtxSessionID ctxKey = "session_id"
+	CtxUserID    ctxKey  = "user_id"
+	CtxSessionID ctxKey  = "session_id"
 	CtxIP        metaKey = "ip"
 	CtxUserAgent metaKey = "user_agent"
 	CtxDevice    metaKey = "device"
@@ -138,7 +138,6 @@ func (m *AuthMiddleware) WrapRefresh(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
-
 
 // logging
 type responseWriter struct {

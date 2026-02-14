@@ -226,7 +226,7 @@ func (a *AuthUsecase) Login(ctx context.Context, req LoginRequest, meta SessionM
 			break
 		}
 	}
-	
+
 	now := time.Now()
 
 	if !updated {
@@ -249,13 +249,13 @@ func (a *AuthUsecase) Login(ctx context.Context, req LoginRequest, meta SessionM
 	}
 
 	return &LoginResponse{
-		AccessToken:      accessToken,
-		RefreshToken:     refreshToken,
-		AccessTokenExp:   accessTokenExp.Format(time.RFC3339),
-		RefreshTokenExp:  refreshTokenExp.Format(time.RFC3339),
-		Device:           meta.Device,
-		UserEmail:        user.Email,
-		IpAddress:        meta.IP,
+		AccessToken:     accessToken,
+		RefreshToken:    refreshToken,
+		AccessTokenExp:  accessTokenExp.Format(time.RFC3339),
+		RefreshTokenExp: refreshTokenExp.Format(time.RFC3339),
+		Device:          meta.Device,
+		UserEmail:       user.Email,
+		IpAddress:       meta.IP,
 	}, nil
 }
 
@@ -331,19 +331,15 @@ func (a *AuthUsecase) Refresh(ctx context.Context, req RefreshTokenRequest, meta
 	}, nil
 }
 
-
-func (a *AuthUsecase) Logout(ctx context.Context, meta SessionMeta) (error) {
-
-
+func (a *AuthUsecase) Logout(ctx context.Context, meta SessionMeta) error {
 
 	return nil
 }
-
 
 // helpers
 func generateRandomCode() int {
 	min := 100000
 	max := 999999
-	
+
 	return rand.IntN(max-min+1) + min
 }

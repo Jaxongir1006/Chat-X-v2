@@ -9,6 +9,7 @@ import (
 	"github.com/Jaxongir1006/Chat-X-v2/internal/config"
 	"github.com/Jaxongir1006/Chat-X-v2/internal/transport/http/auth"
 	"github.com/Jaxongir1006/Chat-X-v2/internal/transport/http/middleware"
+	"github.com/Jaxongir1006/Chat-X-v2/internal/transport/http/session"
 	"github.com/rs/zerolog"
 )
 
@@ -17,17 +18,19 @@ type Server struct {
 	http           *http.Server
 	authMiddleware *middleware.AuthMiddleware
 	authHandler    *auth.AuthHandler
+	sessionHandler *session.SessionHandler
 	logger         zerolog.Logger
 }
 
-func NewServer(cfg config.Server, authMiddleware *middleware.AuthMiddleware, authHandler *auth.AuthHandler, logger zerolog.Logger) *Server {
+func NewServer(cfg config.Server, authMiddleware *middleware.AuthMiddleware, logger zerolog.Logger, authHandler *auth.AuthHandler, sessionHandler *session.SessionHandler) *Server {
 	mux := http.NewServeMux()
 
 	s := &Server{
 		mux:            mux,
 		authMiddleware: authMiddleware,
 		authHandler:    authHandler,
-		logger: logger,
+		sessionHandler: sessionHandler,
+		logger:         logger,
 	}
 
 	var handler http.Handler = mux

@@ -191,5 +191,9 @@ func (s *SessionUsecase) EnforceMaxDevices(ctx context.Context, userID uint64, m
 }
 
 func (s *SessionUsecase) GetSessionsByUserID(ctx context.Context, userID uint64) ([]domain.UserSession, error) {
-return s.sessionStore.GetAllValidSessionsByUserId(ctx, userID)
+	return s.sessionStore.GetAllValidSessionsByUserId(ctx, userID)
+}
+
+func (s *SessionUsecase) RevokeSessionByID(ctx context.Context, sessionID, userID uint64) error {
+	return s.sessionStore.RevokeByID(ctx, sessionID, userID)
 }

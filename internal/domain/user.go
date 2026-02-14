@@ -31,18 +31,18 @@ type UserProfile struct {
 }
 
 type UserSession struct {
-	ID              uint64    `json:"id"`
-	UserID          uint64    `json:"user_id"`
-	AccessToken     string    `json:"access_token"`
-	AccessTokenExp  time.Time `json:"access_token_expires_at"`
-	RefreshToken    string    `json:"refresh_token"`
-	RefreshTokenExp time.Time `json:"refresh_token_expires_at"`
-	IPAddress       string    `json:"ip_address"`
-	UserAgent       string    `json:"user_agent"`
-	Device          string    `json:"device"`
+	ID              uint64     `json:"id"`
+	UserID          uint64     `json:"user_id"`
+	AccessToken     string     `json:"access_token"`
+	AccessTokenExp  time.Time  `json:"access_token_expires_at"`
+	RefreshToken    string     `json:"refresh_token"`
+	RefreshTokenExp time.Time  `json:"refresh_token_expires_at"`
+	IPAddress       string     `json:"ip_address"`
+	UserAgent       string     `json:"user_agent"`
+	Device          string     `json:"device"`
 	RevokedAt       *time.Time `json:"revoked_at"`
 	LastUsedAt      *time.Time `json:"last_used_at"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
 	User            *User      `json:"user,omitempty"`
 }
