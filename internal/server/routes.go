@@ -9,6 +9,7 @@ func (s *Server) setupRoutes() {
 	s.mux.HandleFunc("/api/v1/register", s.authHandler.Register)
 	s.mux.HandleFunc("/api/v1/verify", s.authHandler.VerifyUser)
 	s.mux.HandleFunc("/api/v1/login", s.authHandler.Login)
+	s.mux.Handle("/api/v1/refresh", s.authMiddleware.WrapAccess(http.HandlerFunc(s.authHandler.Refresh)))
 }
 
 func healthCheck(w http.ResponseWriter, r *http.Request) {

@@ -12,9 +12,12 @@ import (
 )
 
 func (r *sessionRepo) GetAllValidSessionsByUserId(ctx context.Context, userID uint64) ([]domain.UserSession, error) {
-	query := `SELECT id, refresh_token, refresh_token_expires_at, access_token, access_token_expires_at, 
+	query := `SELECT id, refresh_token, refresh_token_expires_at, access_token, access_token_expires_at,
 				last_used_at, ip_address, user_agent, device, created_at, updated_at
-				FROM serefresh_token_expires_atssions WHERE user_id = $1 AND  > NOW()`
+				FROM sessions
+				WHERE user_id = $1
+				AND refresh_token_expires_at > NOW()
+				AND revoked_at IS NULL`
 
 	rows, err := r.db.QueryContext(ctx, query, userID)
 	if err != nil {
@@ -185,6 +188,39 @@ func (r *sessionRepo) UpdateMeta(ctx context.Context, sessId uint64, device, ip,
 	_, err := r.db.ExecContext(ctx, query, device, ip, userAgent, now, sessId)
 	if err != nil {
 		return apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+	}
+
+	return nil
+}
+
+func (r *sessionRepo) RevokeByID(ctx context.Context, sessionID, userID uint64) error {
+	query := `UPDATE sessions SET revoked_at = NOW() WHERE id = $1 AND user_id = $2`
+
+	_, err := r.db.ExecContext(ctx, query, sessionID, userID)
+	if err != nil {
+		return apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+	}
+
+	return nil
+}
+
+func (r *sessionRepo) RevokeOthers(ctx context.Context, userID uint64, currentSessionID uint64) error {
+	query := `
+		UPDATE sessions
+		SET revoked_at = NOW()
+		WHERE user_id = $1
+		AND id != $2
+		AND revoked_at IS NULL
+	`
+
+	_, err := r.db.ExecContext(ctx, query, userID, currentSessionID)
+	if err != nil {
+		return apperr.Wrap(
+			apperr.CodeInternal,
+			http.StatusInternalServerError,
+			"INTERNAL SERVER ERROR",
+			err,
+		)
 	}
 
 	return nil

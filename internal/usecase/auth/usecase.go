@@ -226,6 +226,8 @@ func (a *AuthUsecase) Login(ctx context.Context, req LoginRequest, meta SessionM
 			break
 		}
 	}
+	
+	now := time.Now()
 
 	if !updated {
 		session := &domain.UserSession{
@@ -237,7 +239,7 @@ func (a *AuthUsecase) Login(ctx context.Context, req LoginRequest, meta SessionM
 			IPAddress:       meta.IP,
 			Device:          meta.Device,
 			UserAgent:       meta.UserAgent,
-			LastUsedAt:      time.Now(),
+			LastUsedAt:      &now,
 		}
 
 		if err := a.session.Create(ctx, session); err != nil {
@@ -289,7 +291,6 @@ func (a *AuthUsecase) Refresh(ctx context.Context, req RefreshTokenRequest, meta
 	claimSub := ""
 	// Example possibilities (uncomment the one matching your claims type):
 	claimSub = claims.Subject
-	claimSub = claims.RegisteredClaims.Subject
 	// claimSub = claims.GetSubject()
 	if claimSub == "" {
 		// If you can't access subject, at least log it and fail safe.
@@ -328,6 +329,14 @@ func (a *AuthUsecase) Refresh(ctx context.Context, req RefreshTokenRequest, meta
 		Device:          meta.Device,
 		IpAddress:       meta.IP,
 	}, nil
+}
+
+
+func (a *AuthUsecase) Logout(ctx context.Context, meta SessionMeta) (error) {
+
+
+
+	return nil
 }
 
 

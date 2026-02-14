@@ -1,10 +1,10 @@
 package security
 
 import (
-	"errors"
 	"time"
 
 	"github.com/Jaxongir1006/Chat-X-v2/internal/config"
+	apperr "github.com/Jaxongir1006/Chat-X-v2/internal/errors"
 	"github.com/golang-jwt/jwt/v4"
 )
 
@@ -43,6 +43,7 @@ func (t *Token) GenerateAccessToken(userID string) (string, time.Time, error) {
 	claims := &Claims{
 		UserID: userID,
 		RegisteredClaims: jwt.RegisteredClaims{
+			Subject: userID,
 			ExpiresAt: jwt.NewNumericDate(exp),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
@@ -63,6 +64,7 @@ func (t *Token) GenerateRefreshToken(userID string) (string, time.Time, error) {
 	claims := &Claims{
 		UserID: userID,
 		RegisteredClaims: jwt.RegisteredClaims{
+			Subject: userID,
 			ExpiresAt: jwt.NewNumericDate(exp),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
@@ -77,7 +79,7 @@ func (t *Token) GenerateRefreshToken(userID string) (string, time.Time, error) {
 	return signed, exp, nil
 }
 
-var ErrInvalidToken = errors.New("invalid token")
+var ErrInvalidToken = apperr.New(apperr.CodeUnauthorized, 401, "UNAUTHORIZED")
 
 func (t *Token) VerifyAccessToken(tokenStr string) (*Claims, error) {
 	claims := &Claims{}

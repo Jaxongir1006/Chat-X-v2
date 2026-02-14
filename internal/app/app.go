@@ -84,7 +84,7 @@ func runHttp() {
 	infraSession := sessionInfra.NewSessionRepo(dbPool.DB, logger)
 
 	// init middlewares
-	authMiddleware := middleware.NewAuthMiddleware(infraSession, true)
+	authMiddleware := middleware.NewAuthMiddleware(infraSession, false)
 
 	// init repos
 	authRepo := authRepo.NewAuthRepo(dbPool.DB, logger)

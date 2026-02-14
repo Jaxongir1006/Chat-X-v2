@@ -41,7 +41,8 @@ type UserSession struct {
 	UserAgent       string    `json:"user_agent"`
 	Device          string    `json:"device"`
 	RevokedAt       *time.Time `json:"revoked_at"`
-	LastUsedAt      time.Time `json:"last_used_at"`
+	LastUsedAt      *time.Time `json:"last_used_at"`
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
+	User            *User      `json:"user,omitempty"`
 }

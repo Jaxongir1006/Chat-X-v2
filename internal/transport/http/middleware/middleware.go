@@ -13,14 +13,11 @@ import (
 
 type ctxKey string
 
-const (
-	CtxUserID    ctxKey = "user_id"
-	CtxSessionID ctxKey = "session_id"
-)
-
 type metaKey string
 
 const (
+	CtxUserID    ctxKey = "user_id"
+	CtxSessionID ctxKey = "session_id"
 	CtxIP        metaKey = "ip"
 	CtxUserAgent metaKey = "user_agent"
 	CtxDevice    metaKey = "device"
@@ -55,7 +52,7 @@ func MetaMiddleware(next http.Handler) http.Handler {
 		meta := RequestMeta{
 			IP:        clientIP(r),
 			UserAgent: ua,
-			Device:    parseDevice(ua),
+			Device:    deviceLabel(ua),
 		}
 		next.ServeHTTP(w, r.WithContext(WithMeta(r.Context(), meta)))
 	})
@@ -70,7 +67,7 @@ func NewAuthMiddleware(sessions sessionInfra.SessionStore, requireRefresh bool) 
 	return &AuthMiddleware{Sessions: sessions, RequireRefresh: requireRefresh}
 }
 
-func (m *AuthMiddleware) Wrap(next http.Handler) http.Handler {
+func (m *AuthMiddleware) WrapAccess(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		access := extractBearer(r.Header.Get("Authorization"))
 		if access == "" {
@@ -88,6 +85,10 @@ func (m *AuthMiddleware) Wrap(next http.Handler) http.Handler {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
+		if sess.RevokedAt != nil {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
 
 		now := time.Now()
 		if now.After(sess.AccessTokenExp) {
@@ -95,28 +96,40 @@ func (m *AuthMiddleware) Wrap(next http.Handler) http.Handler {
 			return
 		}
 
-		if m.RequireRefresh {
-			refresh := ""
-			if c, err := r.Cookie("refresh_token"); err == nil {
-				refresh = c.Value
-			}
-			if refresh == "" {
-				refresh = r.Header.Get("X-Refresh-Token")
-			}
-			if refresh == "" {
-				http.Error(w, "unauthorized", http.StatusUnauthorized)
-				return
-			}
+		ctx := context.WithValue(r.Context(), CtxUserID, sess.UserID)
+		ctx = context.WithValue(ctx, CtxSessionID, sess.ID)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
 
-			rs, err := m.Sessions.GetByRefreshToken(r.Context(), refresh)
-			if err != nil || rs == nil || rs.UserID != sess.UserID {
-				http.Error(w, "unauthorized", http.StatusUnauthorized)
-				return
-			}
-			if now.After(rs.RefreshTokenExp) {
-				http.Error(w, "refresh token expired", http.StatusUnauthorized)
-				return
-			}
+func (m *AuthMiddleware) WrapRefresh(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		refresh := ""
+		if c, err := r.Cookie("refresh_token"); err == nil {
+			refresh = c.Value
+		}
+		if refresh == "" {
+			refresh = r.Header.Get("X-Refresh-Token")
+		}
+		if refresh == "" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		sess, err := m.Sessions.GetByRefreshToken(r.Context(), refresh)
+		if err != nil || sess == nil {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		if sess.RevokedAt != nil {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		now := time.Now()
+		if now.After(sess.RefreshTokenExp) {
+			http.Error(w, "refresh token expired", http.StatusUnauthorized)
+			return
 		}
 
 		ctx := context.WithValue(r.Context(), CtxUserID, sess.UserID)
@@ -125,6 +138,7 @@ func (m *AuthMiddleware) Wrap(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
+
 
 // logging
 type responseWriter struct {
@@ -167,7 +181,7 @@ func Logging(l zerolog.Logger, next http.Handler) http.Handler {
 		meta, ok := MetaFromContext(r.Context())
 		if !ok {
 			ua := r.UserAgent()
-			meta = RequestMeta{IP: clientIP(r), UserAgent: ua, Device: parseDevice(ua)}
+			meta = RequestMeta{IP: clientIP(r), UserAgent: ua, Device: deviceLabel(ua)}
 		}
 
 		evt.
@@ -221,6 +235,28 @@ func UserIDFromContext(ctx context.Context) (uint64, bool) {
 	v := ctx.Value(CtxUserID)
 	id, ok := v.(uint64)
 	return id, ok
+}
+
+func parseClient(ua string) string {
+	u := strings.ToLower(ua)
+	switch {
+	case strings.Contains(u, "postman"):
+		return "Postman"
+	case strings.Contains(u, "chrome") && !strings.Contains(u, "edg"):
+		return "Chrome"
+	case strings.Contains(u, "safari") && !strings.Contains(u, "chrome"):
+		return "Safari"
+	case strings.Contains(u, "firefox"):
+		return "Firefox"
+	case strings.Contains(u, "edg"):
+		return "Edge"
+	default:
+		return "Unknown Client"
+	}
+}
+
+func deviceLabel(ua string) string {
+	return parseClient(ua) + " on " + parseDevice(ua)
 }
 
 func parseDevice(ua string) string {
