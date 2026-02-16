@@ -225,3 +225,25 @@ func (r *sessionRepo) RevokeOthers(ctx context.Context, userID uint64, currentSe
 
 	return nil
 }
+
+func (r *sessionRepo) RevokeAllByUserID(ctx context.Context, userID uint64) error {
+	query := `UPDATE sessions SET revoked_at = NOW() WHERE user_id = $1`
+
+	_, err := r.db.ExecContext(ctx, query, userID)
+	if err != nil {
+		return apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+	}
+
+	return nil
+}
+
+func (r *sessionRepo) RevokeAllExceptCurrent(ctx context.Context, userID uint64, currentSessionID uint64) error {
+	query := `UPDATE sessions SET revoked_at = NOW() WHERE user_id = $1 AND id != $2`
+
+	_, err := r.db.ExecContext(ctx, query, userID, currentSessionID)
+	if err != nil {
+		return apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+	}
+
+	return nil
+}

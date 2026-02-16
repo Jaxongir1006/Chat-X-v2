@@ -156,3 +156,73 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
+
+func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
+	dec.DisallowUnknownFields()
+
+	var req authUsecase.LogoutRequest
+	if err := dec.Decode(&req); err != nil {
+		http.Error(w, "Bad request: Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+
+	userID, ok := middleware.UserIDFromContext(ctx)
+	if !ok {
+		http.Error(w, "UNAUTHORIZED", http.StatusUnauthorized)
+		return
+	}
+
+	op := req.Operation
+	if op == "" {
+		op = "one"
+	}
+
+	var err error
+	switch op {
+	case "all":
+		err = h.authUsecase.LogoutAll(ctx, userID)
+
+	case "one":
+		if req.SessionID == nil {
+			http.Error(w, "Bad request: Missing session_id", http.StatusBadRequest)
+			return
+		}
+		err = h.authUsecase.LogoutFromCurrent(ctx, *req.SessionID, userID)
+
+	case "except-current":
+		if req.SessionID == nil {
+			http.Error(w, "Bad request: Missing session_id", http.StatusBadRequest)
+			return
+		}
+		err = h.authUsecase.LogOutAllExceptCurrent(ctx, *req.SessionID, userID)
+
+	default:
+		http.Error(w, "Bad request: Invalid operation", http.StatusBadRequest)
+		return
+	}
+
+	if err != nil {
+		apperr.WriteError(w, err, h.logger)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(map[string]any{
+		"message": "User logged out successfully",
+		"success": true,
+	}); err != nil {
+		h.logger.Error().Err(err).Msg("Failed to encode response")
+		return
+	}
+
+	h.logger.Info().Uint64("user_id", userID).Str("operation", op).Msg("User logged out")
+}

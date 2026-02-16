@@ -331,8 +331,27 @@ func (a *AuthUsecase) Refresh(ctx context.Context, req RefreshTokenRequest, meta
 	}, nil
 }
 
-func (a *AuthUsecase) Logout(ctx context.Context, meta SessionMeta) error {
+func (a *AuthUsecase) LogoutFromCurrent(ctx context.Context, userID uint64, sessionID uint64) error {
+	err := a.session.RevokeByID(ctx, sessionID, userID)
+	if err != nil {
+		return apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+	}
+	return nil
+}
 
+func (a *AuthUsecase) LogoutAll(ctx context.Context, userID uint64) error {
+	err := a.session.RevokeAllByUserID(ctx, userID)
+	if err != nil {
+		return apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+	}
+	return nil
+}
+
+func (a *AuthUsecase) LogOutAllExceptCurrent(ctx context.Context, userID uint64, sessionID uint64) error {
+	err := a.session.RevokeAllExceptCurrent(ctx, userID, sessionID)
+	if err != nil {
+		return apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+	}
 	return nil
 }
 

@@ -19,7 +19,7 @@ import (
 	"github.com/Jaxongir1006/Chat-X-v2/internal/transport/http/auth"
 	"github.com/Jaxongir1006/Chat-X-v2/internal/transport/http/middleware"
 	"github.com/Jaxongir1006/Chat-X-v2/internal/transport/http/session"
-	"github.com/Jaxongir1006/Chat-X-v2/internal/usecase/adminUsecase"
+	adminUsecase "github.com/Jaxongir1006/Chat-X-v2/internal/usecase/admin"
 	authUsecase "github.com/Jaxongir1006/Chat-X-v2/internal/usecase/auth"
 	sessionUsecase "github.com/Jaxongir1006/Chat-X-v2/internal/usecase/session"
 )

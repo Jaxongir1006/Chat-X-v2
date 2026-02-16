@@ -33,4 +33,6 @@ type SessionStore interface {
 
 	RevokeByID(ctx context.Context, sessionID, userID uint64) error
 	RevokeOthers(ctx context.Context, userID uint64, currentSessionID uint64) error
+	RevokeAllByUserID(ctx context.Context, userID uint64) error
+	RevokeAllExceptCurrent(ctx context.Context, userID uint64, sessionID uint64) error
 }

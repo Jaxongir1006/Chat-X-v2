@@ -56,3 +56,8 @@ type RefreshTokenResponse struct {
 	Device          string `json:"device"`
 	IpAddress       string `json:"ip_address"`
 }
+
+type LogoutRequest struct {
+	Operation string `json:"operation" validate:"oneof=all one except-current"`
+	SessionID *uint64 `json:"session_id"`
+}
