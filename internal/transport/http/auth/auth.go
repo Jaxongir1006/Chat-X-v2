@@ -181,9 +181,6 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	op := req.Operation
-	if op == "" {
-		op = "one"
-	}
 
 	var err error
 	switch op {
@@ -205,8 +202,11 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		err = h.authUsecase.LogOutAllExceptCurrent(ctx, *req.SessionID, userID)
 
 	default:
-		http.Error(w, "Bad request: Invalid operation", http.StatusBadRequest)
-		return
+		if req.SessionID == nil {
+			http.Error(w, "Bad Request: Missing session_id", http.StatusBadRequest)
+			return
+		}
+		err = h.authUsecase.LogoutFromCurrent(ctx, userID, *req.SessionID)
 	}
 
 	if err != nil {
