@@ -38,11 +38,13 @@ func (h *SessionHandler) Sessions(w http.ResponseWriter, r *http.Request) {
 
 func (h *SessionHandler) RevokeSession(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method now allowed", http.StatusMethodNotAllowed)
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	userID, ok := middleware.UserIDFromContext(r.Context())
+	ctx := r.Context()
+
+	userID, ok := middleware.UserIDFromContext(ctx)
 	if !ok {
 		http.Error(w, "UNAUTHORIZED", http.StatusUnauthorized)
 		return
@@ -60,20 +62,24 @@ func (h *SessionHandler) RevokeSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.sessionUsecase.RevokeSessionByID(r.Context(), sessID, userID); err != nil {
+	if err := h.sessionUsecase.RevokeSessionByID(ctx, sessID, userID); err != nil {
 		apperr.WriteError(w, err, h.logger)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	h.logger.Info().Msg("Session revoked successfully")
-	err = json.NewEncoder(w).Encode(map[string]any{
+	w.WriteHeader(http.StatusOK)
+
+	if err := json.NewEncoder(w).Encode(map[string]any{
 		"message": "Session revoked successfully",
 		"success": true,
-	})
-	if err != nil {
+	}); err != nil {
 		h.logger.Error().Err(err).Msg("Failed to encode response")
-		http.Error(w, "INTERNAL SERVER ERROR", http.StatusInternalServerError)
 		return
 	}
+
+	h.logger.Info().
+		Uint64("user_id", userID).
+		Uint64("session_id", sessID).
+		Msg("Session revoked")
 }
