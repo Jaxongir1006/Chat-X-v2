@@ -12,6 +12,7 @@ import (
 	adminRepo "github.com/Jaxongir1006/Chat-X-v2/internal/infra/postgres/repo/admin"
 	authRepo "github.com/Jaxongir1006/Chat-X-v2/internal/infra/postgres/repo/auth"
 	sessionInfra "github.com/Jaxongir1006/Chat-X-v2/internal/infra/postgres/repo/session"
+	userInfra "github.com/Jaxongir1006/Chat-X-v2/internal/infra/postgres/repo/user"
 	redisInfra "github.com/Jaxongir1006/Chat-X-v2/internal/infra/redis"
 	redisStore "github.com/Jaxongir1006/Chat-X-v2/internal/infra/redis/store"
 	"github.com/Jaxongir1006/Chat-X-v2/internal/infra/security"
@@ -19,9 +20,11 @@ import (
 	"github.com/Jaxongir1006/Chat-X-v2/internal/transport/http/auth"
 	"github.com/Jaxongir1006/Chat-X-v2/internal/transport/http/middleware"
 	"github.com/Jaxongir1006/Chat-X-v2/internal/transport/http/session"
+	"github.com/Jaxongir1006/Chat-X-v2/internal/transport/http/user"
 	adminUsecase "github.com/Jaxongir1006/Chat-X-v2/internal/usecase/admin"
 	authUsecase "github.com/Jaxongir1006/Chat-X-v2/internal/usecase/auth"
 	sessionUsecase "github.com/Jaxongir1006/Chat-X-v2/internal/usecase/session"
+	userUsecase "github.com/Jaxongir1006/Chat-X-v2/internal/usecase/user"
 )
 
 func Run(cmd string) {
@@ -81,14 +84,13 @@ func runHttp() {
 	// 	return
 	// }
 
-	// init infras
-	infraSession := sessionInfra.NewSessionRepo(dbPool.DB, logger)
-
-	// init middlewares
-	authMiddleware := middleware.NewAuthMiddleware(infraSession, false)
-
 	// init repos
 	authRepo := authRepo.NewAuthRepo(dbPool.DB, logger)
+	infraRepo := sessionInfra.NewSessionRepo(dbPool.DB, logger)
+	userRepo := userInfra.NewUserRepo(dbPool.DB, logger)
+
+	// init middlewares
+	authMiddleware := middleware.NewAuthMiddleware(infraRepo, false)
 
 	// init services
 	hasher := security.NewBcryptHasher(10)
@@ -97,15 +99,17 @@ func runHttp() {
 	tokenSrv := security.NewToken(cfg.TokenConfig)
 
 	// init usecases
-	authUsecase := authUsecase.NewAuthUsecase(authRepo, infraSession, redis, tokenSrv, hasher, logger, codeHasher)
-	sessionUsecase := sessionUsecase.NewSessionService(infraSession, tokenSrv, 5)
+	authUsecase := authUsecase.NewAuthUsecase(authRepo, infraRepo, redis, tokenSrv, hasher, logger, codeHasher)
+	sessionUsecase := sessionUsecase.NewSessionService(infraRepo, tokenSrv, 5)
+	userUsecase := userUsecase.NewUserUsecase(userRepo, logger)
 
 	// init handlers
 	authHandler := auth.NewAuthHandler(authUsecase, logger)
 	sessionHandler := session.NewSessionHandler(sessionUsecase, logger)
+	userHandler := user.NewUserHandler(userUsecase, logger)
 
 	// init server
-	srv := server.NewServer(cfg.Server, authMiddleware, logger, authHandler, sessionHandler)
+	srv := server.NewServer(cfg.Server, authMiddleware, logger, authHandler, sessionHandler, userHandler)
 
 	// start server async
 	go func() {

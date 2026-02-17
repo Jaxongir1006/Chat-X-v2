@@ -52,14 +52,14 @@ func (r *sessionRepo) GetAllValidSessionsByUserId(ctx context.Context, userID ui
 
 func (r *sessionRepo) GetByAccessToken(ctx context.Context, accessToken string) (*domain.UserSession, error) {
 	query := `SELECT id, user_id, refresh_token, refresh_token_expires_at, access_token, access_token_expires_at, 
-				last_used_at, ip_address, user_agent, device, created_at, updated_at
+				last_used_at, ip_address, user_agent, device, created_at, updated_at, revoked_at
 				FROM sessions WHERE access_token = $1 AND access_token_expires_at > NOW()`
 
 	var result domain.UserSession
 
 	err := r.db.QueryRowContext(ctx, query, accessToken).Scan(&result.ID, &result.UserID, &result.RefreshToken, &result.RefreshTokenExp, &result.AccessToken,
 		&result.AccessTokenExp, &result.LastUsedAt, &result.IPAddress, &result.UserAgent,
-		&result.Device, &result.CreatedAt, &result.UpdatedAt)
+		&result.Device, &result.CreatedAt, &result.UpdatedAt, &result.RevokedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, apperr.New(apperr.CodeUnauthorized, http.StatusUnauthorized, "UNAUTHORIZED")
 	}

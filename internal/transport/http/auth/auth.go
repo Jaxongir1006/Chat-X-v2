@@ -55,7 +55,6 @@ func (h *AuthHandler) VerifyUser(w http.ResponseWriter, r *http.Request) {
 	meta, ok := middleware.MetaFromContext(r.Context())
 	if !ok {
 		h.logger.Error().Msg("Failed to get meta from context")
-		fmt.Println("something")
 		http.Error(w, "INTERNAL SERVER ERROR", http.StatusInternalServerError)
 		return
 	}
@@ -118,6 +117,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
+
 func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method now allowed", http.StatusMethodNotAllowed)

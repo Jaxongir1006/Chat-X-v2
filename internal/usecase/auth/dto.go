@@ -58,6 +58,6 @@ type RefreshTokenResponse struct {
 }
 
 type LogoutRequest struct {
-	Operation string `json:"operation" validate:"oneof=all one except-current"`
+	Operation string  `json:"operation" validate:"oneof=all one except-current"`
 	SessionID *uint64 `json:"session_id"`
 }
