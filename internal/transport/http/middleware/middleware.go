@@ -60,11 +60,10 @@ func MetaMiddleware(next http.Handler) http.Handler {
 
 type AuthMiddleware struct {
 	Sessions       sessionInfra.SessionStore
-	RequireRefresh bool
 }
 
-func NewAuthMiddleware(sessions sessionInfra.SessionStore, requireRefresh bool) *AuthMiddleware {
-	return &AuthMiddleware{Sessions: sessions, RequireRefresh: requireRefresh}
+func NewAuthMiddleware(sessions sessionInfra.SessionStore) *AuthMiddleware {
+	return &AuthMiddleware{Sessions: sessions}
 }
 
 func (m *AuthMiddleware) WrapAccess(next http.Handler) http.Handler {

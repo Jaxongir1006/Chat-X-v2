@@ -19,8 +19,6 @@ func (a *AuthUsecase) Register(ctx context.Context, req RegisterRequest) error {
 	if req.ConfirmPass != req.Password {
 		return apperr.New(apperr.CodeConflict, http.StatusConflict, "passwords do not match")
 	}
-
-	// password validation
 	if len(req.Password) < 8 {
 		return apperr.New(apperr.CodeConflict, http.StatusConflict, "password must be at least 8 characters long")
 	}
@@ -30,7 +28,6 @@ func (a *AuthUsecase) Register(ctx context.Context, req RegisterRequest) error {
 		return apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
 	}
 
-	// create user
 	user := &domain.User{
 		Username: req.Username,
 		Email:    req.Email,
@@ -39,102 +36,130 @@ func (a *AuthUsecase) Register(ctx context.Context, req RegisterRequest) error {
 		Role:     "user",
 		Verified: false,
 	}
-	if err := a.authStore.InsertUser(ctx, user); err != nil {
-		return apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
-	}
 
-	go func() {
-		// save the email code to redis with a 5 minute ttl
-		bgCtx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	err = a.uow.Do(ctx, func(tx *sql.Tx) error {
+		authTx := a.authStore.WithTx(tx)
+
+		existing, err := authTx.GetByEmail(ctx, req.Email)
+		if err == nil && existing != nil {
+			if existing.Verified {
+				return apperr.New(apperr.CodeConflict, http.StatusConflict, "user already exists, please login")
+			}
+
+			if err := authTx.RestartUnverified(ctx, existing.ID, req.Username, req.Phone, hashed); err != nil {
+				return err
+			}
+
+			return nil
+		}
+
+		if err := authTx.InsertUser(ctx, user); err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil { return err }
+
+
+	email := req.Email
+	go func(email string) {
+		bgCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
 		code := generateRandomCode()
 		hashedCode := a.codeHasher.Hash(fmt.Sprintf("%d", code))
-		err = a.redis.SaveEmailCode(bgCtx, req.Email, hashedCode, time.Minute*5)
-		if err != nil {
-			a.logger.Error().Err(err).Str("email", req.Email).Int("code", code).Msg("failed to save email code to redis")
+
+		if err := a.redis.SaveEmailCode(bgCtx, email, hashedCode, 5*time.Minute); err != nil {
+			a.logger.Error().Err(err).Str("email", email).Int("code", code).Msg("failed to save email code to redis")
 			return
 		}
-		a.logger.Debug().Str("email", req.Email).Int("code", code).Msg("email code saved to redis")
-		// send email to user with the email code.
-	}()
+
+		a.logger.Debug().Str("email", email).Int("code", code).Msg("email code saved to redis")
+		// send email here
+	}(email)
 
 	return nil
 }
 
+
 func (a *AuthUsecase) VerifyUser(ctx context.Context, email string, code int, meta SessionMeta) (*VerifyUserResponse, error) {
+	// 1) Validate OTP from redis (outside tx)
 	codeHash, err := a.redis.GetEmailCodeHash(ctx, email)
-	if err != nil {
-		if err == redis.Nil {
-			return nil, apperr.New(apperr.CodeConflict, http.StatusConflict, "email code is invalid")
+	if err != nil { 
+		if errors.Is(err, redis.Nil) {
+			return nil, apperr.New(apperr.CodeNotFound, http.StatusNotFound, "email code not found")
 		}
-		a.logger.Error().Err(err).Msg("failed to get hashed code from redis")
 		return nil, apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
 	}
 
 	if ok := a.codeHasher.Compare(fmt.Sprintf("%d", code), codeHash); !ok {
-		a.logger.Error().Str("email", email).Int("code", code).Msg("email code is invalid")
 		return nil, apperr.New(apperr.CodeConflict, http.StatusConflict, "email code is invalid")
 	}
 
-	err = a.redis.DeleteEmailCode(ctx, email)
+	var resp *VerifyUserResponse
+
+	err = a.uow.Do(ctx, func(tx *sql.Tx) error {
+		authTx := a.authStore.WithTx(tx)
+		sessTx := a.session.WithTx(tx)
+
+		user, err := authTx.GetByEmail(ctx, email)
+		if err != nil {
+			return err
+		}
+
+		accessToken, accessExp, err := a.token.GenerateAccessToken(fmt.Sprintf("%d", user.ID))
+		if err != nil { return err }
+
+		refreshToken, refreshExp, err := a.token.GenerateRefreshToken(fmt.Sprintf("%d", user.ID))
+		if err != nil { return err }
+
+		if err := authTx.VerifyUser(ctx, email); err != nil {
+			return err
+		}
+		if err := authTx.CreateUserProfile(ctx, user.ID); err != nil {
+			return err
+		}
+
+		now := time.Now()
+		session := &domain.UserSession{
+			UserID:          user.ID,
+			AccessToken:     accessToken,
+			AccessTokenExp:  accessExp,
+			RefreshToken:    refreshToken,
+			RefreshTokenExp: refreshExp,
+			IPAddress:       meta.IP,
+			Device:          meta.Device,
+			UserAgent:       meta.UserAgent,
+			LastUsedAt:      &now,
+		}
+
+		if err := sessTx.Create(ctx, session); err != nil {
+			return err
+		}
+
+		resp = &VerifyUserResponse{
+			AccessToken:     accessToken,
+			AccessTokenExp:  accessExp.Format(time.RFC3339),
+			RefreshToken:    refreshToken,
+			RefreshTokenExp: refreshExp.Format(time.RFC3339),
+			UserEmail:       email,
+			IpAddress:       meta.IP,
+			Device:          meta.Device,
+		}
+
+		return nil
+	})
 	if err != nil {
+		return nil, apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+	}
+
+	if err := a.redis.DeleteEmailCode(ctx, email); err != nil {
 		a.logger.Error().Err(err).Msg("failed to delete email code from redis")
-		return nil, apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
-	}
-
-	// get user by email
-	user, err := a.authStore.GetByEmail(ctx, email)
-	if err != nil {
-		a.logger.Error().Err(err).Msg("failed to get user by email")
-		return nil, apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
-	}
-
-	// create tokens
-	accessToken, accessTokenExp, err := a.token.GenerateAccessToken(fmt.Sprintf("%d", user.ID))
-	if err != nil {
-		a.logger.Error().Err(err).Msg("failed to generate access token")
-		return nil, apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
-	}
-
-	refreshToken, refreshTokenExp, err := a.token.GenerateRefreshToken(fmt.Sprintf("%d", user.ID))
-	if err != nil {
-		a.logger.Error().Err(err).Msg("failed to generate refresh token")
-		return nil, apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
-	}
-
-	// create session for the user
-	session := &domain.UserSession{
-		UserID:          user.ID,
-		AccessToken:     accessToken,
-		AccessTokenExp:  accessTokenExp,
-		RefreshToken:    refreshToken,
-		RefreshTokenExp: refreshTokenExp,
-	}
-
-	if err := a.session.Create(ctx, session); err != nil {
-		a.logger.Error().Err(err).Msg("failed to create session")
-		return nil, apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
-	}
-
-	err = a.authStore.VerifyUser(ctx, email)
-	if err != nil {
-		a.logger.Error().Err(err).Msg("failed to verify user")
-		return nil, apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
-	}
-
-	resp := &VerifyUserResponse{
-		AccessToken:     accessToken,
-		AccessTokenExp:  accessTokenExp.String(),
-		RefreshToken:    refreshToken,
-		RefreshTokenExp: refreshTokenExp.String(),
-		UserEmail:       email,
-		IpAddress:       meta.IP,
-		Device:          meta.Device,
 	}
 
 	return resp, nil
 }
+
 
 func (a *AuthUsecase) Login(ctx context.Context, req LoginRequest, meta SessionMeta) (*LoginResponse, error) {
 	var (
@@ -206,7 +231,7 @@ func (a *AuthUsecase) Login(ctx context.Context, req LoginRequest, meta SessionM
 
 	updated := false
 	for _, s := range sessions {
-		// NOTE: Device string matching can be weak. Prefer meta.DeviceID if you have it.
+		// NOTE: Device string matching can be weak
 		if s.Device == meta.Device {
 			updated = true
 

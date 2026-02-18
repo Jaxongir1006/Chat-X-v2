@@ -1,6 +1,5 @@
 -- +goose Up
 -- +goose StatementBegin
-SELECT 'up SQL query';
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
@@ -22,10 +21,10 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS user_profile (
     id BIGSERIAL PRIMARY KEY,
-    fullname VARCHAR(250),
-    address VARCHAR(500),
+    fullname VARCHAR(250) NOT NULL DEFAULT '',
+    address VARCHAR(500) NOT NULL DEFAULT '',
     user_id BIGINT NOT NULL,
-    profile_image_link VARCHAR(500),
+    profile_image_link VARCHAR(500) NOT NULL DEFAULT '',
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
     FOREIGN KEY (user_id) REFERENCES users (id),
@@ -39,7 +38,6 @@ CREATE INDEX idx_user_profile_user_id ON user_profile (user_id);
 
 -- +goose Down
 -- +goose StatementBegin
-SELECT 'down SQL query';
 DROP TABLE IF EXISTS user_profile;
 DROP TABLE IF EXISTS users;
 -- +goose StatementEnd

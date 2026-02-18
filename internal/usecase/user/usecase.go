@@ -2,10 +2,37 @@ package userUsecase
 
 import (
 	"context"
-
-	"github.com/Jaxongir1006/Chat-X-v2/internal/domain"
 )
 
-func (u *UserUsecase) GetMe(ctx context.Context, userID uint64) (*domain.User, error) {
-	return u.userStore.GetUserByID(ctx, userID)
+func (u *UserUsecase) GetMe(ctx context.Context, userID uint64) (*UserResponse, error) {
+	user, err := u.userStore.GetUserByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	
+	profile, err := u.userStore.GetUserProfileByUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	response := UserResponse{
+		ID:        user.ID,
+		Email:     user.Email,
+		Role:      user.Role,
+		Username:  user.Username,
+		Verified:  user.Verified,
+		Phone:     user.Phone,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
+		Profile: UserProfileResponse{
+			ID: profile.ID,
+			FullName: profile.FullName,
+			Address: profile.Address,
+			ProfileImage: profile.ProfileImage,
+			CreatedAt: profile.CreatedAt,
+			UpdatedAt: profile.UpdatedAt,
+		},
+	}
+
+	return &response, nil
 }

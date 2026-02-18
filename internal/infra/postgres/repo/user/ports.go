@@ -8,4 +8,5 @@ import (
 
 type UserStore interface {
 	GetUserByID(ctx context.Context, userID uint64) (*domain.User, error)
+	GetUserProfileByUserID(ctx context.Context, userID uint64) (*domain.UserProfile, error)
 }

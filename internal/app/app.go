@@ -13,6 +13,7 @@ import (
 	authRepo "github.com/Jaxongir1006/Chat-X-v2/internal/infra/postgres/repo/auth"
 	sessionInfra "github.com/Jaxongir1006/Chat-X-v2/internal/infra/postgres/repo/session"
 	userInfra "github.com/Jaxongir1006/Chat-X-v2/internal/infra/postgres/repo/user"
+	"github.com/Jaxongir1006/Chat-X-v2/internal/infra/postgres/uow"
 	redisInfra "github.com/Jaxongir1006/Chat-X-v2/internal/infra/redis"
 	redisStore "github.com/Jaxongir1006/Chat-X-v2/internal/infra/redis/store"
 	"github.com/Jaxongir1006/Chat-X-v2/internal/infra/security"
@@ -90,7 +91,11 @@ func runHttp() {
 	userRepo := userInfra.NewUserRepo(dbPool.DB, logger)
 
 	// init middlewares
-	authMiddleware := middleware.NewAuthMiddleware(infraRepo, false)
+	authMiddleware := middleware.NewAuthMiddleware(infraRepo)
+
+	// init uow
+	uow := uow.NewSQLUnitOfWork(dbPool.DB)
+
 
 	// init services
 	hasher := security.NewBcryptHasher(10)
@@ -99,7 +104,7 @@ func runHttp() {
 	tokenSrv := security.NewToken(cfg.TokenConfig)
 
 	// init usecases
-	authUsecase := authUsecase.NewAuthUsecase(authRepo, infraRepo, redis, tokenSrv, hasher, logger, codeHasher)
+	authUsecase := authUsecase.NewAuthUsecase(authRepo, infraRepo, redis, tokenSrv, hasher, logger, codeHasher, uow)
 	sessionUsecase := sessionUsecase.NewSessionService(infraRepo, tokenSrv, 5)
 	userUsecase := userUsecase.NewUserUsecase(userRepo, logger)
 

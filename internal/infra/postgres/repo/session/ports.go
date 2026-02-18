@@ -2,12 +2,16 @@ package sessionInfra
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"github.com/Jaxongir1006/Chat-X-v2/internal/domain"
 )
 
 type SessionStore interface {
+	// used only when usecase needs transaction
+	WithTx(tx *sql.Tx) *sessionRepo
+
 	// lists sessions where refresh is still valid (or revoked_at is null)
 	GetAllValidSessionsByUserId(ctx context.Context, userID uint64) ([]domain.UserSession, error)
 
