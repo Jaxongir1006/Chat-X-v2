@@ -3,11 +3,8 @@ package authRepo
 import (
 	"context"
 	"database/sql"
-	"errors"
-	"net/http"
 
 	"github.com/Jaxongir1006/Chat-X-v2/internal/domain"
-	apperr "github.com/Jaxongir1006/Chat-X-v2/internal/errors"
 	"github.com/rs/zerolog"
 )
 
@@ -53,11 +50,8 @@ func (r *authRepo) GetByID(ctx context.Context, id uint64) (*domain.User, error)
 		&result.CreatedAt,
 		&result.UpdatedAt,
 	)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, apperr.New(apperr.CodeNotFound, http.StatusNotFound, "NOT FOUND")
-	}
 	if err != nil {
-		return nil, apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+		return nil, err
 	}
 
 	return &result, nil
@@ -78,11 +72,8 @@ func (r *authRepo) GetByEmail(ctx context.Context, email string) (*domain.User, 
 		&result.UpdatedAt,
 		&result.Password,
 	)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, apperr.New(apperr.CodeNotFound, http.StatusNotFound, "NOT FOUND")
-	}
 	if err != nil {
-		return nil, apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+		return nil, err
 	}
 
 	result.Email = email
@@ -105,11 +96,8 @@ func (r *authRepo) GetByPhone(ctx context.Context, phone string) (*domain.User, 
 		&result.UpdatedAt,
 		&result.Password,
 	)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, apperr.New(apperr.CodeNotFound, http.StatusNotFound, "NOT FOUND")
-	}
 	if err != nil {
-		return nil, apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+		return nil, err
 	}
 
 	return &result, nil
@@ -121,7 +109,7 @@ func (r *authRepo) InsertUser(ctx context.Context, user *domain.User) error {
 
 	_, err := r.execer().ExecContext(ctx, query, user.Username, user.Phone, user.Email, user.Password, user.Role, user.Verified)
 	if err != nil {
-		return apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+		return err
 	}
 	return nil
 }
@@ -131,7 +119,7 @@ func (r *authRepo) DeleteUser(ctx context.Context, userID uint64) error {
 
 	_, err := r.execer().ExecContext(ctx, query, userID)
 	if err != nil {
-		return apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+		return err
 	}
 	return nil
 }
@@ -153,11 +141,8 @@ func (r *authRepo) GetByUsername(ctx context.Context, username string) (*domain.
 		&result.UpdatedAt,
 		&result.Password,
 	)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, apperr.New(apperr.CodeNotFound, http.StatusNotFound, "NOT FOUND")
-	}
 	if err != nil {
-		return nil, apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+		return nil, err
 	}
 
 	return &result, nil
@@ -168,7 +153,7 @@ func (r *authRepo) CreateUserProfile(ctx context.Context, userID uint64) error {
 
 	_, err := r.execer().ExecContext(ctx, query, userID)
 	if err != nil {
-		return apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+		return err
 	}
 	return nil
 }
@@ -178,7 +163,7 @@ func (r *authRepo) VerifyUser(ctx context.Context, email string) error {
 
 	_, err := r.execer().ExecContext(ctx, query, email)
 	if err != nil {
-		return apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+		return err
 	}
 	return nil
 }
@@ -188,7 +173,7 @@ func (r *authRepo) RestartUnverified(ctx context.Context, id uint64, username, p
 
 	_, err := r.execer().ExecContext(ctx, query, id, username, phone, hashed)
 	if err != nil {
-		return apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+		return err
 	}
 	return nil
 }

@@ -16,15 +16,16 @@ type User struct {
 	Password  string    `json:"password_hash"`
 	Verified  bool      `json:"verified"`
 	Role      string    `json:"role"`
+	LastSeenAt time.Time `json:"last_seen_at"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type UserProfile struct {
-	ID           uint64    `json:"id"`
 	FullName     string    `json:"fullname"`
 	Address      string    `json:"address"`
-	ProfileImage string    `json:"profile_image_link"`
+	Bio          string    `json:"bio"`
+	ProfileImage string    `json:"profile_image_key"`
 	UserID       uint64    `json:"user_id"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`

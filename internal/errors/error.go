@@ -19,6 +19,7 @@ const (
 	CodeConflict     Code = "conflict"
 	CodeInvalidInput Code = "invalid_input"
 	CodeRateLimited  Code = "rate_limited"
+	CodeBadRequest   Code = "bad_request"
 
 	CodeChatNotFound Code = "chat_not_found"
 	CodeMsgTooLong   Code = "message_too_long"

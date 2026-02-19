@@ -87,15 +87,14 @@ func runHttp() {
 
 	// init repos
 	authRepo := authRepo.NewAuthRepo(dbPool.DB, logger)
-	infraRepo := sessionInfra.NewSessionRepo(dbPool.DB, logger)
+	sessionRepo := sessionInfra.NewSessionRepo(dbPool.DB, logger)
 	userRepo := userInfra.NewUserRepo(dbPool.DB, logger)
 
 	// init middlewares
-	authMiddleware := middleware.NewAuthMiddleware(infraRepo)
+	authMiddleware := middleware.NewAuthMiddleware(sessionRepo)
 
 	// init uow
 	uow := uow.NewSQLUnitOfWork(dbPool.DB)
-
 
 	// init services
 	hasher := security.NewBcryptHasher(10)
@@ -104,9 +103,9 @@ func runHttp() {
 	tokenSrv := security.NewToken(cfg.TokenConfig)
 
 	// init usecases
-	authUsecase := authUsecase.NewAuthUsecase(authRepo, infraRepo, redis, tokenSrv, hasher, logger, codeHasher, uow)
-	sessionUsecase := sessionUsecase.NewSessionService(infraRepo, tokenSrv, 5)
-	userUsecase := userUsecase.NewUserUsecase(userRepo, logger)
+	authUsecase := authUsecase.NewAuthUsecase(authRepo, sessionRepo, redis, tokenSrv, hasher, logger, codeHasher, uow)
+	sessionUsecase := sessionUsecase.NewSessionService(sessionRepo, tokenSrv, 5)
+	userUsecase := userUsecase.NewUserUsecase(userRepo, sessionRepo, uow, logger)
 
 	// init handlers
 	authHandler := auth.NewAuthHandler(authUsecase, logger)

@@ -31,4 +31,7 @@ CREATE INDEX idx_sessions_refresh_exp
 -- +goose Down
 -- +goose StatementBegin
 DROP TABLE sessions;
+
+DROP INDEX IF EXISTS idx_sessions_user_refresh_exp;
+DROP INDEX IF EXISTS idx_sessions_refresh_exp;
 -- +goose StatementEnd

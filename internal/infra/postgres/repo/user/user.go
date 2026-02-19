@@ -2,13 +2,10 @@ package userInfra
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"fmt"
-	"net/http"
+	"strings"
 
 	"github.com/Jaxongir1006/Chat-X-v2/internal/domain"
-	apperr "github.com/Jaxongir1006/Chat-X-v2/internal/errors"
 )
 
 func (r *userRepo) GetUserByID(ctx context.Context, userID uint64) (*domain.User, error) {
@@ -18,7 +15,7 @@ func (r *userRepo) GetUserByID(ctx context.Context, userID uint64) (*domain.User
 				FROM users WHERE id = $1`
 
 	var result domain.User
-	err := r.db.QueryRowContext(ctx, query, userID).Scan(
+	err := r.execer().QueryRowContext(ctx, query, userID).Scan(
 		&result.Username,
 		&result.Phone,
 		&result.Email,
@@ -27,37 +24,69 @@ func (r *userRepo) GetUserByID(ctx context.Context, userID uint64) (*domain.User
 		&result.CreatedAt,
 		&result.UpdatedAt,
 	)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, apperr.New(apperr.CodeNotFound, http.StatusNotFound, "NOT FOUND")
-	}
 	if err != nil {
-		return nil, apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+		return nil, err
 	}
 	result.ID = userID
 	return &result, nil
 }
 
 func (r *userRepo) GetUserProfileByUserID(ctx context.Context, userID uint64) (*domain.UserProfile, error) {
-	query := `SELECT id, fullname, address, profile_image_link, created_at, updated_at FROM user_profile WHERE user_id = $1`
+	query := `SELECT fullname, address, bio, profile_image_key, created_at, updated_at FROM user_profile WHERE user_id = $1`
 
 	var result domain.UserProfile
-	err := r.db.QueryRowContext(ctx, query, userID).Scan(&result.ID, &result.FullName, &result.Address, &result.ProfileImage, &result.CreatedAt, &result.UpdatedAt)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, apperr.New(apperr.CodeNotFound, http.StatusNotFound, "NOT FOUND")
-	}
+	err := r.execer().QueryRowContext(ctx, query, userID).Scan(&result.FullName, &result.Address, &result.Bio, &result.ProfileImage, &result.CreatedAt, &result.UpdatedAt)
 	if err != nil {
-		return nil, apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+		return nil, err
 	}
 	result.UserID = userID
 	return &result, nil
 }
 
-func (r *userRepo) UpdateUserProfile(ctx context.Context, userID uint64, profile *domain.UserProfile) error {
-	query := `UPDATE user_profile SET fullname = $1, address = $2, profile_image_link = $3, updated_at = NOW() WHERE user_id = $4`
+func (r *userRepo) UpdateUserProfileFields(ctx context.Context, userID uint64, fullname, address, profileImage, bio *string) error {
+	setClauses := []string{"updated_at = NOW()"}
+	args := []interface{}{}
+	idx := 1
 
-	_, err := r.db.ExecContext(ctx, query, profile.FullName, profile.Address, profile.ProfileImage, userID)
+	if fullname != nil {
+		setClauses = append(setClauses, fmt.Sprintf("fullname = $%d", idx))
+		args = append(args, *fullname)
+		idx++
+	}
+
+	if address != nil {
+		setClauses = append(setClauses, fmt.Sprintf("address = $%d", idx))
+		args = append(args, *address)
+		idx++
+	}
+
+	if bio != nil {
+		setClauses = append(setClauses, fmt.Sprintf("bio = $%d", idx))
+		args = append(args, *bio)
+		idx++
+	}
+
+	if profileImage != nil {
+		setClauses = append(setClauses, fmt.Sprintf("profile_image_key = $%d", idx))
+		args = append(args, *profileImage)
+		idx++
+	}
+
+	if len(setClauses) == 1 {
+		return nil
+	}
+
+	where := fmt.Sprintf("user_id = $%d", idx)
+	args = append(args, userID)
+
+	query := `
+		UPDATE user_profile
+		SET ` + strings.Join(setClauses, ", ") + `
+		WHERE ` + where
+
+	_, err := r.db.ExecContext(ctx, query, args...)
 	if err != nil {
-		return apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+		return err
 	}
 
 	return nil
@@ -65,11 +94,20 @@ func (r *userRepo) UpdateUserProfile(ctx context.Context, userID uint64, profile
 
 func (r *userRepo) DeleteUserProfile(ctx context.Context, userID uint64) error {
 	query := `DELETE FROM user_profile WHERE user_id = $1`
+	
+	_, err := r.db.ExecContext(ctx, query, userID)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *userRepo) DeleteUser(ctx context.Context, userID uint64) error {
+	query := `DELETE FROM users WHERE id = $1`
 
 	_, err := r.db.ExecContext(ctx, query, userID)
 	if err != nil {
-		return apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+		return err
 	}
-
 	return nil
 }

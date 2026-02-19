@@ -9,5 +9,5 @@ server:
 token:
   access_secret: "secret"
   refresh_secret: "secret"
-  access_ttl: "15m"
-  refresh_ttl: "24h"
+  access_ttl: "24h"
+  refresh_ttl: "48h"

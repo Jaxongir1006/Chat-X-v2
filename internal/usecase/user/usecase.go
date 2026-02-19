@@ -2,6 +2,7 @@ package userUsecase
 
 import (
 	"context"
+	"database/sql"
 )
 
 func (u *UserUsecase) GetMe(ctx context.Context, userID uint64) (*UserResponse, error) {
@@ -25,9 +26,9 @@ func (u *UserUsecase) GetMe(ctx context.Context, userID uint64) (*UserResponse, 
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 		Profile: UserProfileResponse{
-			ID: profile.ID,
 			FullName: profile.FullName,
 			Address: profile.Address,
+			Bio: profile.Bio,
 			ProfileImage: profile.ProfileImage,
 			CreatedAt: profile.CreatedAt,
 			UpdatedAt: profile.UpdatedAt,
@@ -35,4 +36,21 @@ func (u *UserUsecase) GetMe(ctx context.Context, userID uint64) (*UserResponse, 
 	}
 
 	return &response, nil
+}
+
+func (u *UserUsecase) UpdateProfile(ctx context.Context, userID uint64, req UpdateProfileRequest) error {
+	return u.userStore.UpdateUserProfileFields(ctx, userID, req.FullName, req.Address, req.ProfileImage, req.Bio)
+}
+
+
+func (u *UserUsecase) DeleteAccount(ctx context.Context, userID uint64) error {
+	err := u.uow.Do(ctx, func(tx *sql.Tx) error {
+		userTx := u.userStore.WithTx(tx)
+		sessTx := u.session.WithTx(tx)
+
+		return nil
+	})
+
+	
+	return nil
 }

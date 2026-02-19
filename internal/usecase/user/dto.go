@@ -16,10 +16,17 @@ type UserResponse struct {
 }
 
 type UserProfileResponse struct {
-	ID           uint64    `json:"id"`
 	FullName     string    `json:"fullname"`
 	Address      string    `json:"address"`
-	ProfileImage string    `json:"profile_image_link"`
+	Bio          string    `json:"bio"`
+	ProfileImage string    `json:"profile_image_key"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+type UpdateProfileRequest struct {
+	FullName 	*string `json:"fullname"`
+	Address  	*string `json:"address"`
+	ProfileImage *string `json:"profile_image_key"`
+	Bio			*string `json:"bio"`
 }

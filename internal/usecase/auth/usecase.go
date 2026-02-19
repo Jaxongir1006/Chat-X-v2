@@ -173,7 +173,7 @@ func (a *AuthUsecase) Login(ctx context.Context, req LoginRequest, meta SessionM
 		user, err = a.authStore.GetByEmail(ctx, req.LoginInput)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				return nil, apperr.New(apperr.CodeUnauthorized, http.StatusUnauthorized, "invalid credentials")
+				return nil, apperr.New(apperr.CodeNotFound, http.StatusNotFound, "user not found")
 			}
 			a.logger.Error().Err(err).Msg("failed to get user by email")
 			return nil, apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)

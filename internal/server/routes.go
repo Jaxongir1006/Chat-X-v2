@@ -21,6 +21,10 @@ func (s *Server) setupRoutes() {
 
 	// user
 	s.mux.Handle("/api/v1/me", s.authMiddleware.WrapAccess(http.HandlerFunc(s.userHandler.GetMe)))
+	s.mux.Handle("/api/v1/me/profile", s.authMiddleware.WrapAccess(http.HandlerFunc(s.userHandler.UpdateProfile)))
+	// s.mux.Handle("/api/v1/users/{user_id}", s.authMiddleware.WrapAccess(http.HandlerFunc(s.userHandler.GetUser)))
+	// s.mux.Handle("/api/v1/users/search", s.authMiddleware.WrapAccess(http.HandlerFunc(s.userHandler.SearchUsers)))
+	// s.mux.Handle("/api/v1/users/{user_id}/block", s.authMiddleware.WrapAccess(http.HandlerFunc(s.userHandler.BlockUser)))
 }
 
 func healthCheck(w http.ResponseWriter, r *http.Request) {

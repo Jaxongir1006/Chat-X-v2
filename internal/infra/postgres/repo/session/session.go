@@ -2,13 +2,9 @@ package sessionInfra
 
 import (
 	"context"
-	"database/sql"
-	"errors"
-	"net/http"
 	"time"
 
 	"github.com/Jaxongir1006/Chat-X-v2/internal/domain"
-	apperr "github.com/Jaxongir1006/Chat-X-v2/internal/errors"
 )
 
 func (r *sessionRepo) GetAllValidSessionsByUserId(ctx context.Context, userID uint64) ([]domain.UserSession, error) {
@@ -21,7 +17,7 @@ func (r *sessionRepo) GetAllValidSessionsByUserId(ctx context.Context, userID ui
 
 	rows, err := r.execer().QueryContext(ctx, query, userID)
 	if err != nil {
-		return nil, apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+		return nil, err
 	}
 
 	defer func() {
@@ -37,14 +33,14 @@ func (r *sessionRepo) GetAllValidSessionsByUserId(ctx context.Context, userID ui
 		if err := rows.Scan(&s.ID, &s.RefreshToken, &s.RefreshTokenExp, &s.AccessToken,
 			&s.AccessTokenExp, &s.LastUsedAt, &s.IPAddress, &s.UserAgent,
 			&s.Device, &s.CreatedAt, &s.UpdatedAt); err != nil {
-			return nil, apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+			return nil, err
 		}
 		s.UserID = userID
 		sessions = append(sessions, s)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+		return nil, err
 	}
 
 	return sessions, nil
@@ -60,11 +56,8 @@ func (r *sessionRepo) GetByAccessToken(ctx context.Context, accessToken string) 
 	err := r.execer().QueryRowContext(ctx, query, accessToken).Scan(&result.ID, &result.UserID, &result.RefreshToken, &result.RefreshTokenExp, &result.AccessToken,
 		&result.AccessTokenExp, &result.LastUsedAt, &result.IPAddress, &result.UserAgent,
 		&result.Device, &result.CreatedAt, &result.UpdatedAt, &result.RevokedAt)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, apperr.New(apperr.CodeUnauthorized, http.StatusUnauthorized, "UNAUTHORIZED")
-	}
 	if err != nil {
-		return nil, apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+		return nil, err
 	}
 
 	return &result, nil
@@ -80,11 +73,8 @@ func (r *sessionRepo) GetByRefreshToken(ctx context.Context, refreshToken string
 	err := r.execer().QueryRowContext(ctx, query, refreshToken).Scan(&result.ID, &result.UserID, &result.RefreshToken, &result.RefreshTokenExp, &result.AccessToken,
 		&result.AccessTokenExp, &result.LastUsedAt, &result.IPAddress, &result.UserAgent,
 		&result.Device, &result.CreatedAt, &result.UpdatedAt)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, apperr.New(apperr.CodeUnauthorized, http.StatusUnauthorized, "UNAUTHORIZED")
-	}
 	if err != nil {
-		return nil, apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+		return nil, err
 	}
 
 	return &result, nil
@@ -100,7 +90,7 @@ func (r *sessionRepo) Create(ctx context.Context, s *domain.UserSession) error {
 	_, err := r.execer().ExecContext(ctx, query, s.UserID, s.RefreshToken, s.RefreshTokenExp, s.AccessToken,
 		s.AccessTokenExp, s.LastUsedAt, s.IPAddress, s.UserAgent, s.Device)
 	if err != nil {
-		return apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+		return err
 	}
 
 	return nil
@@ -112,7 +102,7 @@ func (r *sessionRepo) UpdateTokens(ctx context.Context, sessionID uint64, access
 
 	_, err := r.execer().ExecContext(ctx, query, access, accessExp, refresh, refreshExp, sessionID)
 	if err != nil {
-		return apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+		return err
 	}
 
 	return nil
@@ -123,7 +113,7 @@ func (r *sessionRepo) DeleteByID(ctx context.Context, sessionID uint64) error {
 
 	_, err := r.execer().ExecContext(ctx, query, sessionID)
 	if err != nil {
-		return apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+		return err
 	}
 
 	return nil
@@ -134,7 +124,7 @@ func (r *sessionRepo) DeleteByUserID(ctx context.Context, userID uint64) error {
 
 	_, err := r.execer().ExecContext(ctx, query, userID)
 	if err != nil {
-		return apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+		return err
 	}
 
 	return nil
@@ -152,7 +142,7 @@ func (r *sessionRepo) DeleteOldestValidSession(ctx context.Context, userID uint6
 
 	_, err := r.execer().ExecContext(ctx, query, userID)
 	if err != nil {
-		return apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+		return err
 	}
 
 	return nil
@@ -163,7 +153,7 @@ func (r *sessionRepo) DeleteExpiredRefreshSessionsByUserID(ctx context.Context, 
 
 	_, err := r.execer().ExecContext(ctx, query, userID)
 	if err != nil {
-		return apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+		return err
 	}
 
 	return nil
@@ -175,7 +165,7 @@ func (r *sessionRepo) RotateRefresh(ctx context.Context, sessionID uint64, refre
 
 	_, err := r.execer().ExecContext(ctx, query, refresh, refreshExp, sessionID)
 	if err != nil {
-		return apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+		return err
 	}
 
 	return nil
@@ -187,7 +177,7 @@ func (r *sessionRepo) UpdateMeta(ctx context.Context, sessId uint64, device, ip,
 
 	_, err := r.execer().ExecContext(ctx, query, device, ip, userAgent, now, sessId)
 	if err != nil {
-		return apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+		return err
 	}
 
 	return nil
@@ -198,7 +188,7 @@ func (r *sessionRepo) RevokeByID(ctx context.Context, sessionID, userID uint64) 
 
 	_, err := r.execer().ExecContext(ctx, query, sessionID, userID)
 	if err != nil {
-		return apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+		return err
 	}
 
 	return nil
@@ -215,12 +205,7 @@ func (r *sessionRepo) RevokeOthers(ctx context.Context, userID uint64, currentSe
 
 	_, err := r.execer().ExecContext(ctx, query, userID, currentSessionID)
 	if err != nil {
-		return apperr.Wrap(
-			apperr.CodeInternal,
-			http.StatusInternalServerError,
-			"INTERNAL SERVER ERROR",
-			err,
-		)
+		return err
 	}
 
 	return nil
@@ -231,7 +216,7 @@ func (r *sessionRepo) RevokeAllByUserID(ctx context.Context, userID uint64) erro
 
 	_, err := r.execer().ExecContext(ctx, query, userID)
 	if err != nil {
-		return apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+		return err
 	}
 
 	return nil
@@ -242,7 +227,7 @@ func (r *sessionRepo) RevokeAllExceptCurrent(ctx context.Context, userID uint64,
 
 	_, err := r.execer().ExecContext(ctx, query, userID, currentSessionID)
 	if err != nil {
-		return apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
+		return err
 	}
 
 	return nil
