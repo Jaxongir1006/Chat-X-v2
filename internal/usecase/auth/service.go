@@ -1,4 +1,4 @@
-package authUsecase
+package auth
 
 import (
 	authRepo "github.com/Jaxongir1006/Chat-X-v2/internal/infra/postgres/repo/auth"
@@ -33,6 +33,6 @@ func NewAuthUsecase(authStore authRepo.AuthStore,
 		hasher:     hasher,
 		logger:     logger,
 		codeHasher: codeHasher,
-		uow: uow,
+		uow:        uow,
 	}
 }

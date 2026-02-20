@@ -1,4 +1,4 @@
-package authRepo
+package auth
 
 import (
 	"context"
@@ -32,7 +32,6 @@ func (r *authRepo) execer() interface {
 	}
 	return r.db
 }
-
 
 func (r *authRepo) GetByID(ctx context.Context, id uint64) (*domain.User, error) {
 	query := `SELECT id, username, phone, email, verified, role,

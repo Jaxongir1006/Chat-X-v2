@@ -1,4 +1,4 @@
-package userInfra
+package user
 
 import (
 	"context"
@@ -34,4 +34,3 @@ func (r *userRepo) execer() interface {
 	}
 	return r.db
 }
-

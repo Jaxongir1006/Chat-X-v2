@@ -1,4 +1,4 @@
-package sessionInfra
+package session
 
 import (
 	"context"

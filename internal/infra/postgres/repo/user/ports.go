@@ -1,4 +1,4 @@
-package userInfra
+package user
 
 import (
 	"context"

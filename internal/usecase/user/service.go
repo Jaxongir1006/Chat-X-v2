@@ -1,8 +1,8 @@
-package userUsecase
+package user
 
 import (
 	sessionInfra "github.com/Jaxongir1006/Chat-X-v2/internal/infra/postgres/repo/session"
-	"github.com/Jaxongir1006/Chat-X-v2/internal/infra/postgres/repo/user"
+	userInfra "github.com/Jaxongir1006/Chat-X-v2/internal/infra/postgres/repo/user"
 	"github.com/Jaxongir1006/Chat-X-v2/internal/infra/postgres/uow"
 	"github.com/rs/zerolog"
 )

@@ -1,4 +1,4 @@
-package userInfra
+package user
 
 import (
 	"context"
@@ -84,7 +84,7 @@ func (r *userRepo) UpdateUserProfileFields(ctx context.Context, userID uint64, f
 		SET ` + strings.Join(setClauses, ", ") + `
 		WHERE ` + where
 
-	_, err := r.db.ExecContext(ctx, query, args...)
+	_, err := r.execer().ExecContext(ctx, query, args...)
 	if err != nil {
 		return err
 	}
@@ -94,8 +94,8 @@ func (r *userRepo) UpdateUserProfileFields(ctx context.Context, userID uint64, f
 
 func (r *userRepo) DeleteUserProfile(ctx context.Context, userID uint64) error {
 	query := `DELETE FROM user_profile WHERE user_id = $1`
-	
-	_, err := r.db.ExecContext(ctx, query, userID)
+
+	_, err := r.execer().ExecContext(ctx, query, userID)
 	if err != nil {
 		return err
 	}
@@ -105,7 +105,7 @@ func (r *userRepo) DeleteUserProfile(ctx context.Context, userID uint64) error {
 func (r *userRepo) DeleteUser(ctx context.Context, userID uint64) error {
 	query := `DELETE FROM users WHERE id = $1`
 
-	_, err := r.db.ExecContext(ctx, query, userID)
+	_, err := r.execer().ExecContext(ctx, query, userID)
 	if err != nil {
 		return err
 	}

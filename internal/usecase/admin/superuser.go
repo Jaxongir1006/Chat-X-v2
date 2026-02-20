@@ -1,4 +1,4 @@
-package adminUsecase
+package admin
 
 import (
 	"bufio"

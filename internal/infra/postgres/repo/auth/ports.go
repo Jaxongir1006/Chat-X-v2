@@ -1,4 +1,4 @@
-package authRepo
+package auth
 
 import (
 	"context"

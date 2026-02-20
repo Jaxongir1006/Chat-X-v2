@@ -1,4 +1,4 @@
-package adminUsecase
+package admin
 
 import (
 	adminRepo "github.com/Jaxongir1006/Chat-X-v2/internal/infra/postgres/repo/admin"

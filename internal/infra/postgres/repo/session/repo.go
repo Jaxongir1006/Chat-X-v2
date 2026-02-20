@@ -1,4 +1,4 @@
-package sessionInfra
+package session
 
 import (
 	"context"
@@ -15,7 +15,7 @@ type sessionRepo struct {
 
 func NewSessionRepo(db *sql.DB, logger zerolog.Logger) *sessionRepo {
 	return &sessionRepo{
-		db:		db,
+		db:     db,
 		logger: logger,
 	}
 }
@@ -34,4 +34,3 @@ func (r *sessionRepo) execer() interface {
 	}
 	return r.db
 }
-

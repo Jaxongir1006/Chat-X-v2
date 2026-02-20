@@ -23,7 +23,7 @@ func (h *UserHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.usecase.GetMe(r.Context(), userID)
 	if err != nil {
-		apperr.WriteError(w, err, h.logger)
+		apperr.WriteError(w, err, &h.logger)
 		return
 	}
 
@@ -58,14 +58,14 @@ func (h *UserHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 
 	err = h.usecase.UpdateProfile(r.Context(), userID, req)
 	if err != nil {
-		apperr.WriteError(w, err, h.logger)
+		apperr.WriteError(w, err, &h.logger)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	err = json.NewEncoder(w).Encode(map[string]any{
-		"message":"User updated successfully",
-		"success":true,
+		"message": "User updated successfully",
+		"success": true,
 	})
 }
 
@@ -83,13 +83,13 @@ func (h *UserHandler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
 
 	err := h.usecase.DeleteAccount(r.Context(), userID)
 	if err != nil {
-		apperr.WriteError(w, err, h.logger)
+		apperr.WriteError(w, err, &h.logger)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	err = json.NewEncoder(w).Encode(map[string]any{
-		"message":"User deleted successfully",
-		"success":true,
+		"message": "User deleted successfully",
+		"success": true,
 	})
 }

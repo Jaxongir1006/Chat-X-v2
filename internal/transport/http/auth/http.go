@@ -23,7 +23,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.authUsecase.Register(r.Context(), req); err != nil {
-		apperr.WriteError(w, err, h.logger)
+		apperr.WriteError(w, err, &h.logger)
 		return
 	}
 
@@ -65,7 +65,7 @@ func (h *AuthHandler) VerifyUser(w http.ResponseWriter, r *http.Request) {
 		Device:    meta.Device,
 	})
 	if err != nil {
-		apperr.WriteError(w, err, h.logger)
+		apperr.WriteError(w, err, &h.logger)
 		return
 	}
 
@@ -104,7 +104,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Device:    meta.Device,
 	})
 	if err != nil {
-		apperr.WriteError(w, err, h.logger)
+		apperr.WriteError(w, err, &h.logger)
 		return
 	}
 
@@ -143,7 +143,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		Device:    meta.Device,
 	})
 	if err != nil {
-		apperr.WriteError(w, err, h.logger)
+		apperr.WriteError(w, err, &h.logger)
 		return
 	}
 
@@ -168,6 +168,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 
 	var req authUsecase.LogoutRequest
 	if err := dec.Decode(&req); err != nil {
+		h.logger.Error().Err(err).Msg("Failed to decode request body")
 		http.Error(w, "Bad request: Invalid JSON", http.StatusBadRequest)
 		return
 	}
@@ -196,6 +197,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 
 	case "except-current":
 		if req.SessionID == nil {
+			h.logger.Error().Msg("Invalid logout operation and missing session_id")
 			http.Error(w, "Bad request: Missing session_id", http.StatusBadRequest)
 			return
 		}
@@ -203,6 +205,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 
 	default:
 		if req.SessionID == nil {
+			h.logger.Error().Msg("Invalid logout operation and missing session_id")
 			http.Error(w, "Bad Request: Missing session_id", http.StatusBadRequest)
 			return
 		}
@@ -210,7 +213,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		apperr.WriteError(w, err, h.logger)
+		apperr.WriteError(w, err, &h.logger)
 		return
 	}
 

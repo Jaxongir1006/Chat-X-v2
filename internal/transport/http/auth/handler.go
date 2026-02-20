@@ -13,5 +13,6 @@ type AuthHandler struct {
 func NewAuthHandler(authUsecase *authUsecase.AuthUsecase, logger zerolog.Logger) *AuthHandler {
 	return &AuthHandler{
 		authUsecase: authUsecase,
+		logger:      logger,
 	}
 }

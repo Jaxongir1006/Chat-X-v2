@@ -59,7 +59,7 @@ func MetaMiddleware(next http.Handler) http.Handler {
 }
 
 type AuthMiddleware struct {
-	Sessions       sessionInfra.SessionStore
+	Sessions sessionInfra.SessionStore
 }
 
 func NewAuthMiddleware(sessions sessionInfra.SessionStore) *AuthMiddleware {
@@ -192,6 +192,20 @@ func Logging(l zerolog.Logger, next http.Handler) http.Handler {
 			Str("ua", meta.UserAgent).
 			Str("device", meta.Device).
 			Msg("http")
+	})
+}
+
+// cors middleware in order to allow cross-origin requests from frontend
+func CORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Refresh-Token")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
 	})
 }
 

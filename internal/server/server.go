@@ -40,6 +40,7 @@ func NewServer(cfg config.Server, authMiddleware *middleware.AuthMiddleware, log
 	var handler http.Handler = mux
 	handler = middleware.MetaMiddleware(handler)
 	handler = middleware.Logging(logger, handler)
+	handler = middleware.CORS(handler)
 
 	s.http = &http.Server{
 		Addr:              cfg.Host + ":" + fmt.Sprint(cfg.Port),

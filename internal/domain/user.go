@@ -9,16 +9,16 @@ const (
 )
 
 type User struct {
-	ID        uint64    `json:"id"`
-	Username  string    `json:"username"`
-	Phone     string    `json:"phone"`
-	Email     string    `json:"email"`
-	Password  string    `json:"password_hash"`
-	Verified  bool      `json:"verified"`
-	Role      string    `json:"role"`
+	ID         uint64    `json:"id"`
+	Username   string    `json:"username"`
+	Phone      string    `json:"phone"`
+	Email      string    `json:"email"`
+	Password   string    `json:"password_hash"`
+	Verified   bool      `json:"verified"`
+	Role       string    `json:"role"`
 	LastSeenAt time.Time `json:"last_seen_at"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 type UserProfile struct {

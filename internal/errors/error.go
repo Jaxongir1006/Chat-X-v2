@@ -59,7 +59,7 @@ func Is(err error, code Code) bool {
 	return false
 }
 
-func WriteError(w http.ResponseWriter, err error, logger zerolog.Logger) {
+func WriteError(w http.ResponseWriter, err error, logger *zerolog.Logger) {
 	var ae *AppError
 	if !errors.As(err, &ae) {
 		ae = Wrap(CodeInternal, http.StatusInternalServerError, "Internal server error", err)

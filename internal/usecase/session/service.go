@@ -1,4 +1,4 @@
-package sessionUsecase
+package session
 
 import (
 	sessionInfra "github.com/Jaxongir1006/Chat-X-v2/internal/infra/postgres/repo/session"

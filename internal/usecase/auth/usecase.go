@@ -1,4 +1,4 @@
-package authUsecase
+package auth
 
 import (
 	"context"
@@ -58,8 +58,9 @@ func (a *AuthUsecase) Register(ctx context.Context, req RegisterRequest) error {
 		}
 		return nil
 	})
-	if err != nil { return err }
-
+	if err != nil {
+		return err
+	}
 
 	email := req.Email
 	go func(email string) {
@@ -81,11 +82,10 @@ func (a *AuthUsecase) Register(ctx context.Context, req RegisterRequest) error {
 	return nil
 }
 
-
 func (a *AuthUsecase) VerifyUser(ctx context.Context, email string, code int, meta SessionMeta) (*VerifyUserResponse, error) {
 	// 1) Validate OTP from redis (outside tx)
 	codeHash, err := a.redis.GetEmailCodeHash(ctx, email)
-	if err != nil { 
+	if err != nil {
 		if errors.Is(err, redis.Nil) {
 			return nil, apperr.New(apperr.CodeNotFound, http.StatusNotFound, "email code not found")
 		}
@@ -108,10 +108,14 @@ func (a *AuthUsecase) VerifyUser(ctx context.Context, email string, code int, me
 		}
 
 		accessToken, accessExp, err := a.token.GenerateAccessToken(fmt.Sprintf("%d", user.ID))
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 
 		refreshToken, refreshExp, err := a.token.GenerateRefreshToken(fmt.Sprintf("%d", user.ID))
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 
 		if err := authTx.VerifyUser(ctx, email); err != nil {
 			return err
@@ -160,7 +164,6 @@ func (a *AuthUsecase) VerifyUser(ctx context.Context, email string, code int, me
 	return resp, nil
 }
 
-
 func (a *AuthUsecase) Login(ctx context.Context, req LoginRequest, meta SessionMeta) (*LoginResponse, error) {
 	var (
 		user *domain.User
@@ -182,15 +185,11 @@ func (a *AuthUsecase) Login(ctx context.Context, req LoginRequest, meta SessionM
 		user, err = a.authStore.GetByPhone(ctx, req.LoginInput)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				return nil, apperr.New(apperr.CodeUnauthorized, http.StatusUnauthorized, "invalid credentials")
+				return nil, apperr.New(apperr.CodeNotFound, http.StatusNotFound, "user not found")
 			}
 			a.logger.Error().Err(err).Msg("failed to get user by phone")
 			return nil, apperr.Wrap(apperr.CodeInternal, http.StatusInternalServerError, "INTERNAL SERVER ERROR", err)
 		}
-	}
-
-	if user == nil {
-		return nil, apperr.New(apperr.CodeUnauthorized, http.StatusUnauthorized, "invalid credentials")
 	}
 
 	if !user.Verified {
@@ -198,7 +197,7 @@ func (a *AuthUsecase) Login(ctx context.Context, req LoginRequest, meta SessionM
 	}
 
 	if err := a.hasher.CheckPasswordHash(req.Password, user.Password); err != nil {
-		return nil, apperr.New(apperr.CodeUnauthorized, http.StatusUnauthorized, "invalid credentials")
+		return nil, apperr.New(apperr.CodeUnauthorized, http.StatusConflict, "password is incorrect")
 	}
 
 	accessToken, accessTokenExp, err := a.token.GenerateAccessToken(fmt.Sprintf("%d", user.ID))

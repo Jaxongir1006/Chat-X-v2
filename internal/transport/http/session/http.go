@@ -23,7 +23,7 @@ func (h *SessionHandler) Sessions(w http.ResponseWriter, r *http.Request) {
 
 	userSessions, err := h.sessionUsecase.GetSessionsByUserID(r.Context(), userID)
 	if err != nil {
-		apperr.WriteError(w, err, h.logger)
+		apperr.WriteError(w, err, &h.logger)
 		return
 	}
 
@@ -63,7 +63,7 @@ func (h *SessionHandler) RevokeSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.sessionUsecase.RevokeSessionByID(ctx, sessID, userID); err != nil {
-		apperr.WriteError(w, err, h.logger)
+		apperr.WriteError(w, err, &h.logger)
 		return
 	}
 
