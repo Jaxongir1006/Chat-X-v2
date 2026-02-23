@@ -25,10 +25,18 @@ type UserProfile struct {
 	FullName     string    `json:"fullname"`
 	Address      string    `json:"address"`
 	Bio          string    `json:"bio"`
-	ProfileImage string    `json:"profile_image_key"`
 	UserID       uint64    `json:"user_id"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+type UserProfileMedia struct {
+	ID           uint64    `json:"id"`
+	UserID       uint64    `json:"user_id"`
+	MediaKey     string    `json:"media_key"`
+	IsPrimary    bool      `json:"is_primary"`
+	DisplayOrder int       `json:"display_order"`
+	CreatedAt    time.Time `json:"created_at"`
 }
 
 type UserSession struct {

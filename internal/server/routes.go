@@ -23,6 +23,16 @@ func (s *Server) setupRoutes() {
 	s.mux.Handle("/api/v1/me", s.authMiddleware.WrapAccess(http.HandlerFunc(s.userHandler.GetMe)))
 	s.mux.Handle("/api/v1/me/profile", s.authMiddleware.WrapAccess(http.HandlerFunc(s.userHandler.UpdateProfile)))
 	s.mux.Handle("/api/v1/me/delete", s.authMiddleware.WrapAccess(http.HandlerFunc(s.userHandler.DeleteAccount)))
+	s.mux.Handle("/api/v1/me/password", s.authMiddleware.WrapAccess(http.HandlerFunc(s.userHandler.ChangePassword)))
+	s.mux.Handle("/api/v1/me/profile/media", s.authMiddleware.WrapAccess(http.HandlerFunc(s.userHandler.AddProfileMedia)))
+	s.mux.Handle("/api/v1/me/profile/media/delete", s.authMiddleware.WrapAccess(http.HandlerFunc(s.userHandler.DeleteProfileMedia)))
+	s.mux.Handle("/api/v1/me/profile/media/primary", s.authMiddleware.WrapAccess(http.HandlerFunc(s.userHandler.SetPrimaryProfileMedia)))
+
+	// chat
+	s.mux.Handle("/api/v1/chat/conversations", s.authMiddleware.WrapAccess(http.HandlerFunc(s.chatHandler.GetConversations)))
+	s.mux.Handle("/api/v1/chat/dm", s.authMiddleware.WrapAccess(http.HandlerFunc(s.chatHandler.StartDM)))
+	s.mux.Handle("/api/v1/chat/group", s.authMiddleware.WrapAccess(http.HandlerFunc(s.chatHandler.CreateGroup)))
+	s.mux.Handle("/api/v1/chat/messages/history", s.authMiddleware.WrapAccess(http.HandlerFunc(s.chatHandler.GetMessages)))
 
 	// media 
 	s.mux.Handle("/api/v1/media/upload", s.authMiddleware.WrapAccess(http.HandlerFunc(s.mediaHandler.UploadMedia)))

@@ -12,6 +12,7 @@ import (
 	"github.com/Jaxongir1006/Chat-X-v2/internal/infra/postgres"
 	adminRepo "github.com/Jaxongir1006/Chat-X-v2/internal/infra/postgres/repo/admin"
 	authRepo "github.com/Jaxongir1006/Chat-X-v2/internal/infra/postgres/repo/auth"
+	chatRepo "github.com/Jaxongir1006/Chat-X-v2/internal/infra/postgres/repo/chat"
 	sessionInfra "github.com/Jaxongir1006/Chat-X-v2/internal/infra/postgres/repo/session"
 	userInfra "github.com/Jaxongir1006/Chat-X-v2/internal/infra/postgres/repo/user"
 	"github.com/Jaxongir1006/Chat-X-v2/internal/infra/postgres/uow"
@@ -20,12 +21,14 @@ import (
 	"github.com/Jaxongir1006/Chat-X-v2/internal/infra/security"
 	"github.com/Jaxongir1006/Chat-X-v2/internal/server"
 	"github.com/Jaxongir1006/Chat-X-v2/internal/transport/http/auth"
+	"github.com/Jaxongir1006/Chat-X-v2/internal/transport/http/chat"
 	"github.com/Jaxongir1006/Chat-X-v2/internal/transport/http/media"
 	"github.com/Jaxongir1006/Chat-X-v2/internal/transport/http/middleware"
 	"github.com/Jaxongir1006/Chat-X-v2/internal/transport/http/session"
 	"github.com/Jaxongir1006/Chat-X-v2/internal/transport/http/user"
 	adminUsecase "github.com/Jaxongir1006/Chat-X-v2/internal/usecase/admin"
 	authUsecase "github.com/Jaxongir1006/Chat-X-v2/internal/usecase/auth"
+	chatUsecase "github.com/Jaxongir1006/Chat-X-v2/internal/usecase/chat"
 	mediaUsecase "github.com/Jaxongir1006/Chat-X-v2/internal/usecase/media"
 	sessionUsecase "github.com/Jaxongir1006/Chat-X-v2/internal/usecase/session"
 	userUsecase "github.com/Jaxongir1006/Chat-X-v2/internal/usecase/user"
@@ -92,6 +95,7 @@ func runHttp() {
 	authRepo := authRepo.NewAuthRepo(dbPool.DB, logger)
 	sessionRepo := sessionInfra.NewSessionRepo(dbPool.DB, logger)
 	userRepo := userInfra.NewUserRepo(dbPool.DB, logger)
+	chatRepo := chatRepo.NewChatRepo(dbPool.DB, logger)
 
 	// init middlewares
 	authMiddleware := middleware.NewAuthMiddleware(sessionRepo)
@@ -108,17 +112,19 @@ func runHttp() {
 	// init usecases
 	authUsecase := authUsecase.NewAuthUsecase(authRepo, sessionRepo, redis, tokenSrv, hasher, logger, codeHasher, uow)
 	sessionUsecase := sessionUsecase.NewSessionService(sessionRepo, tokenSrv, 5)
-	userUsecase := userUsecase.NewUserUsecase(userRepo, sessionRepo, uow, logger)
+	userUsecase := userUsecase.NewUserUsecase(userRepo, sessionRepo, uow, hasher, logger)
 	mediaUsecase := mediaUsecase.NewMediaUsecase(minioStore, logger)
+	chatUsecase := chatUsecase.NewChatUsecase(chatRepo, uow, logger)
 
 	// init handlers
 	authHandler := auth.NewAuthHandler(authUsecase, logger)
 	sessionHandler := session.NewSessionHandler(sessionUsecase, logger)
 	userHandler := user.NewUserHandler(userUsecase, logger)
 	mediaHandler := media.NewMediaHandler(mediaUsecase, logger)
+	chatHandler := chat.NewChatHandler(chatUsecase, logger)
 	
 	// init server
-	srv := server.NewServer(cfg.Server, authMiddleware, logger, authHandler, sessionHandler, userHandler, mediaHandler)
+	srv := server.NewServer(cfg.Server, authMiddleware, logger, authHandler, sessionHandler, userHandler, mediaHandler, chatHandler)
 
 	// start server async
 	go func() {

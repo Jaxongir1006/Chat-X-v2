@@ -8,6 +8,7 @@ import (
 
 	"github.com/Jaxongir1006/Chat-X-v2/internal/config"
 	"github.com/Jaxongir1006/Chat-X-v2/internal/transport/http/auth"
+	"github.com/Jaxongir1006/Chat-X-v2/internal/transport/http/chat"
 	"github.com/Jaxongir1006/Chat-X-v2/internal/transport/http/media"
 	"github.com/Jaxongir1006/Chat-X-v2/internal/transport/http/middleware"
 	"github.com/Jaxongir1006/Chat-X-v2/internal/transport/http/session"
@@ -23,11 +24,12 @@ type Server struct {
 	sessionHandler *session.SessionHandler
 	userHandler    *user.UserHandler
 	mediaHandler   *media.MediaHandler
+	chatHandler    *chat.ChatHandler
 	logger         zerolog.Logger
 }
 
 func NewServer(cfg config.Server, authMiddleware *middleware.AuthMiddleware, logger zerolog.Logger,
-	authHandler *auth.AuthHandler, sessionHandler *session.SessionHandler, userHandler *user.UserHandler, mediaHandler *media.MediaHandler) *Server {
+	authHandler *auth.AuthHandler, sessionHandler *session.SessionHandler, userHandler *user.UserHandler, mediaHandler *media.MediaHandler, chatHandler *chat.ChatHandler) *Server {
 	mux := http.NewServeMux()
 
 	s := &Server{
@@ -38,6 +40,7 @@ func NewServer(cfg config.Server, authMiddleware *middleware.AuthMiddleware, log
 		userHandler:    userHandler,
 		logger:         logger,
 		mediaHandler:   mediaHandler,
+		chatHandler:    chatHandler,
 	}
 
 	var handler http.Handler = mux

@@ -3,6 +3,7 @@ package user
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	apperr "github.com/Jaxongir1006/Chat-X-v2/internal/errors"
 	"github.com/Jaxongir1006/Chat-X-v2/internal/transport/http/middleware"
@@ -90,6 +91,124 @@ func (h *UserHandler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	err = json.NewEncoder(w).Encode(map[string]any{
 		"message": "User deleted successfully",
+		"success": true,
+	})
+}
+
+func (h *UserHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "UNAUTHORIZED", http.StatusUnauthorized)
+		return
+	}
+
+	var req userUsecase.ChangePasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "BAD REQUEST", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.usecase.ChangePassword(r.Context(), userID, req); err != nil {
+		apperr.WriteError(w, err, &h.logger)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"message": "Password changed successfully",
+		"success": true,
+	})
+}
+
+func (h *UserHandler) AddProfileMedia(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "UNAUTHORIZED", http.StatusUnauthorized)
+		return
+	}
+
+	var req userUsecase.AddProfileMediaRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "BAD REQUEST", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.usecase.AddProfileMedia(r.Context(), userID, req); err != nil {
+		apperr.WriteError(w, err, &h.logger)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"message": "Media added to profile",
+		"success": true,
+	})
+}
+
+func (h *UserHandler) DeleteProfileMedia(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "UNAUTHORIZED", http.StatusUnauthorized)
+		return
+	}
+
+	idStr := r.URL.Query().Get("id")
+	mediaID, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid media ID", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.usecase.DeleteProfileMedia(r.Context(), userID, mediaID); err != nil {
+		apperr.WriteError(w, err, &h.logger)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *UserHandler) SetPrimaryProfileMedia(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPatch {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "UNAUTHORIZED", http.StatusUnauthorized)
+		return
+	}
+
+	idStr := r.URL.Query().Get("id")
+	mediaID, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid media ID", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.usecase.SetPrimaryProfileMedia(r.Context(), userID, mediaID); err != nil {
+		apperr.WriteError(w, err, &h.logger)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"message": "Primary profile media updated",
 		"success": true,
 	})
 }

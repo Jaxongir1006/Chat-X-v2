@@ -15,17 +15,34 @@ type UserResponse struct {
 }
 
 type UserProfileResponse struct {
-	FullName     string    `json:"fullname"`
-	Address      string    `json:"address"`
-	Bio          string    `json:"bio"`
-	ProfileImage string    `json:"profile_image_key"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	FullName     string                `json:"fullname"`
+	Address      string                `json:"address"`
+	Bio          string                `json:"bio"`
+	Media        []UserProfileMediaDTO `json:"media,omitempty"`
+	CreatedAt    time.Time             `json:"created_at"`
+	UpdatedAt    time.Time             `json:"updated_at"`
+}
+
+type UserProfileMediaDTO struct {
+	ID           uint64 `json:"id"`
+	MediaKey     string `json:"media_key"`
+	IsPrimary    bool   `json:"is_primary"`
+	DisplayOrder int    `json:"display_order"`
 }
 
 type UpdateProfileRequest struct {
 	FullName     *string `json:"fullname"`
 	Address      *string `json:"address"`
-	ProfileImage *string `json:"profile_image_key"`
 	Bio          *string `json:"bio"`
+}
+
+type ChangePasswordRequest struct {
+	OldPassword     string `json:"old_password" binding:"required"`
+	NewPassword     string `json:"new_password" binding:"required"`
+	ConfirmPassword string `json:"confirm_password" binding:"required"`
+}
+
+type AddProfileMediaRequest struct {
+	MediaKey  string `json:"media_key" binding:"required"`
+	IsPrimary bool   `json:"is_primary"`
 }
