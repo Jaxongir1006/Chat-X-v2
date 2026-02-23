@@ -8,6 +8,7 @@ import (
 
 	"github.com/Jaxongir1006/Chat-X-v2/internal/config"
 	"github.com/Jaxongir1006/Chat-X-v2/internal/infra/logger"
+	"github.com/Jaxongir1006/Chat-X-v2/internal/infra/minio"
 	"github.com/Jaxongir1006/Chat-X-v2/internal/infra/postgres"
 	adminRepo "github.com/Jaxongir1006/Chat-X-v2/internal/infra/postgres/repo/admin"
 	authRepo "github.com/Jaxongir1006/Chat-X-v2/internal/infra/postgres/repo/auth"
@@ -19,11 +20,13 @@ import (
 	"github.com/Jaxongir1006/Chat-X-v2/internal/infra/security"
 	"github.com/Jaxongir1006/Chat-X-v2/internal/server"
 	"github.com/Jaxongir1006/Chat-X-v2/internal/transport/http/auth"
+	"github.com/Jaxongir1006/Chat-X-v2/internal/transport/http/media"
 	"github.com/Jaxongir1006/Chat-X-v2/internal/transport/http/middleware"
 	"github.com/Jaxongir1006/Chat-X-v2/internal/transport/http/session"
 	"github.com/Jaxongir1006/Chat-X-v2/internal/transport/http/user"
 	adminUsecase "github.com/Jaxongir1006/Chat-X-v2/internal/usecase/admin"
 	authUsecase "github.com/Jaxongir1006/Chat-X-v2/internal/usecase/auth"
+	mediaUsecase "github.com/Jaxongir1006/Chat-X-v2/internal/usecase/media"
 	sessionUsecase "github.com/Jaxongir1006/Chat-X-v2/internal/usecase/session"
 	userUsecase "github.com/Jaxongir1006/Chat-X-v2/internal/usecase/user"
 )
@@ -74,16 +77,16 @@ func runHttp() {
 	}()
 
 	// init minio
-	// minioStore, err := minio.New(cfg.MinioConfig)
-	// if err != nil {
-	// 	logger.Fatal().Err(err).Msg("failed to initialized minio")
-	// 	return
-	// }
+	minioStore, err := minio.New(cfg.MinioConfig)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("failed to initialized minio")
+		return
+	}
 
-	// if err := minioStore.EnsureBucket(ctx); err != nil {
-	// 	logger.Fatal().Err(err).Msg("failed to ensure minio bucket")
-	// 	return
-	// }
+	if err := minioStore.EnsureBucket(ctx); err != nil {
+		logger.Fatal().Err(err).Msg("failed to ensure minio bucket")
+		return
+	}
 
 	// init repos
 	authRepo := authRepo.NewAuthRepo(dbPool.DB, logger)
@@ -106,14 +109,16 @@ func runHttp() {
 	authUsecase := authUsecase.NewAuthUsecase(authRepo, sessionRepo, redis, tokenSrv, hasher, logger, codeHasher, uow)
 	sessionUsecase := sessionUsecase.NewSessionService(sessionRepo, tokenSrv, 5)
 	userUsecase := userUsecase.NewUserUsecase(userRepo, sessionRepo, uow, logger)
+	mediaUsecase := mediaUsecase.NewMediaUsecase(minioStore, logger)
 
 	// init handlers
 	authHandler := auth.NewAuthHandler(authUsecase, logger)
 	sessionHandler := session.NewSessionHandler(sessionUsecase, logger)
 	userHandler := user.NewUserHandler(userUsecase, logger)
-
+	mediaHandler := media.NewMediaHandler(mediaUsecase, logger)
+	
 	// init server
-	srv := server.NewServer(cfg.Server, authMiddleware, logger, authHandler, sessionHandler, userHandler)
+	srv := server.NewServer(cfg.Server, authMiddleware, logger, authHandler, sessionHandler, userHandler, mediaHandler)
 
 	// start server async
 	go func() {

@@ -23,6 +23,9 @@ func (s *Server) setupRoutes() {
 	s.mux.Handle("/api/v1/me", s.authMiddleware.WrapAccess(http.HandlerFunc(s.userHandler.GetMe)))
 	s.mux.Handle("/api/v1/me/profile", s.authMiddleware.WrapAccess(http.HandlerFunc(s.userHandler.UpdateProfile)))
 	s.mux.Handle("/api/v1/me/delete", s.authMiddleware.WrapAccess(http.HandlerFunc(s.userHandler.DeleteAccount)))
+
+	// media 
+	s.mux.Handle("/api/v1/media/upload", s.authMiddleware.WrapAccess(http.HandlerFunc(s.mediaHandler.UploadMedia)))
 }
 
 func healthCheck(w http.ResponseWriter, r *http.Request) {

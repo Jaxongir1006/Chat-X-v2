@@ -197,7 +197,7 @@ func (a *AuthUsecase) Login(ctx context.Context, req LoginRequest, meta SessionM
 	}
 
 	if err := a.hasher.CheckPasswordHash(req.Password, user.Password); err != nil {
-		return nil, apperr.New(apperr.CodeUnauthorized, http.StatusConflict, "password is incorrect")
+		return nil, apperr.New(apperr.CodeConflict, http.StatusConflict, "password is incorrect")
 	}
 
 	accessToken, accessTokenExp, err := a.token.GenerateAccessToken(fmt.Sprintf("%d", user.ID))

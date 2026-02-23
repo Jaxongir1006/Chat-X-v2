@@ -150,7 +150,7 @@ CREATE INDEX IF NOT EXISTS idx_conversations_type ON conversations(type);
 -- +goose StatementEnd
 
 -- +goose Down
-DROP TABLE IF EXISTS conversation_participants;j
+DROP TABLE IF EXISTS conversation_participants;
 DROP TABLE IF EXISTS dm_pairs;
 DROP TABLE IF EXISTS message_reads;
 DROP TABLE IF EXISTS message_attachments;

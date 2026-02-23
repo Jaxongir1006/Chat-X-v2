@@ -71,9 +71,6 @@ func (s *Storage) Upload(ctx context.Context, objectName string, file multipart.
 }
 
 func (s *Storage) Delete(ctx context.Context, objectName string) error {
-	if objectName == "" {
-		return fmt.Errorf("objectName is required")
-	}
 	if err := s.client.RemoveObject(ctx, s.bucket, objectName, minio.RemoveObjectOptions{}); err != nil {
 		return fmt.Errorf("minio remove object: %w", err)
 	}
